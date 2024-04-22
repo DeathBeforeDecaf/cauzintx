@@ -1,18 +1,26 @@
 #ifndef PARSEOPT_H
 #define PARSEOPT_H
 
-#include "stdtypes.h"
+#include <stddef.h>  // NULL
+#include <stdlib.h>  // atol()
+#include <string.h>  // strlen()
+
 #include "command.h"
-#include "layout.h"
+#include "editor.h"
+#include "globals.h"
+#include "layout.h"  // pageName, pageCount
 #include "filelist.h"
+#include "platform.h"
+#include "settings.h" // struct SystemSettings
 #include "support.h"
 #include "txstrip.h" // encoding[]
 #include "txreduce.h" // struct DataDensityEntry
+#include "stdtypes.h"
 
 void printUsage();
 
 bool setStripID( bool isCmdLine, char* inputStr );
-bool setOutputFilename( bool isCmdLine, char* inputStr );
+bool setOutputFilename( bool isCmdLine, const char* inputStr );
 bool setSequenceText( bool isCmdLine, char* inputStr );
 bool setStripAdjunct( bool isCmdLine, char* inputStr );
 bool recursivelySearchSubdirectories( bool isCmdLine, char* inputStr );
@@ -30,9 +38,6 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr );
 bool updatePrintMediaParameters( bool isCmdLine, char* inputStr );
 bool updateInkSpreadIndex( bool isCmdLine, char* inputStr );
 bool updateReductionFactor( bool isCmdLine, char* inputStr );
-
-
-bool applyOption( char* optionStr );
 
 char** sortCommandLineArguments( uint16_t argC, char* argV[] );
 

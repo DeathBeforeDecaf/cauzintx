@@ -1,8 +1,14 @@
 #ifndef BITFLD32_H
 #define BITFLD32_H
 
-#include "stdtypes.h"
+#include <memory.h>  // memset()
+#include <stdio.h>   // fprintf(), fopen(), fclose()
+#include <stdlib.h>  // NULL, malloc(), free()
+#include <sys/stat.h>
+#include <sys/types.h>
 
+#include "platform.h"
+#include "stdtypes.h"
 
 struct BitField32Type
 {
@@ -19,8 +25,8 @@ struct BitField32Type
 void BitField32_initialize( struct BitField32Type** field, uint16_t rowCount, uint16_t colCount );
 void BitField32_relinquish( struct BitField32Type** field );
 
-bool BitField32_save( struct BitField32Type* field, char* path );
-bool BitField32_load( struct BitField32Type* field, char* path );
+bool BitField32_save( struct BitField32Type* field, char* filePath );
+bool BitField32_load( struct BitField32Type* field, char* filePath );
 
 bool BitField32_get( struct BitField32Type* field, uint16_t row, uint16_t col, uint8_t* bitOut );
 bool BitField32_put( struct BitField32Type* field, uint16_t row, uint16_t col, uint8_t bitIn );

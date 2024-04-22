@@ -1,16 +1,5 @@
 #include "settings.h"
 
-const char whitespace[] =
-{
-   ' ',
-   '\t',
-   '\r',
-   '\n',
-};
-
-const uint8_t ws_count = sizeof( whitespace ) / sizeof( whitespace[ 0 ] );
-
-
 struct SystemSettings settings =
 {
    1,                                                        // isInteractive
@@ -56,7 +45,45 @@ struct SystemSettings settings =
       { 'o', 'u', 't', 'p', 'u', 't', '.', 'p', 's', '\0' }, // outputFilename
       NULL,                       // verboseDescription
       { 0 },                      // encoding
-      5UL * 1024UL * 127UL        // MAX_STRIP_SEQUENCE_BYTES: ~127 5K strips
+      5UL * 1024UL * 127UL        // DEFAULT_SEQUENCE_LIMIT: ~127 5K strips
    },
    { 0 }                          // workingDirectory
 };
+
+
+void calculateStripHeight( struct StripLayoutType* dfltStrip, struct MediaLayoutType media )
+{
+   float waterMarkedStripHeight;
+
+   // height = publish - margin
+   float stripHeight =
+      media.publish.height - media.publish.margin.top - media.publish.margin.bottom;
+
+   // height -= alignment_marks (top and bottom adjustments)
+   stripHeight = stripHeight - dfltStrip->align.top - dfltStrip->align.bottom;
+
+   // height -= header_height ( ~1/4 inch )
+   stripHeight =
+      stripHeight - dfltStrip->header.top_m - dfltStrip->header.hsync_h - dfltStrip->header.vsync_h;
+
+   // height - footer_height ( watermark? )
+   stripHeight =
+      stripHeight - dfltStrip->footer.top_m;
+
+   waterMarkedStripHeight = stripHeight - dfltStrip->footer.wmark_h - dfltStrip->footer.bottom_m;
+
+   // truncate strip to hard limit
+   if ( stripHeight > settings.pageLayout.limitApertureSizeInches )
+   {
+      stripHeight = settings.pageLayout.limitApertureSizeInches;
+   }
+
+   if ( waterMarkedStripHeight > settings.pageLayout.limitApertureSizeInches )
+   {
+      waterMarkedStripHeight = settings.pageLayout.limitApertureSizeInches;
+   }
+
+   dfltStrip->apparentHeight = stripHeight;
+
+   dfltStrip->apparentWatermarkedHeight = waterMarkedStripHeight;
+}

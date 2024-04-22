@@ -1,19 +1,19 @@
-#include <stdio.h>  // printf()
-#include <stdlib.h> //
-#include <string.h> // strlen()
+#include <stdio.h>  // printf(), snprintf()
+#include <stdlib.h> // NULL
 #include <time.h>   // localtime()
 
-#include "strptx16/editor.h"   // displayEditorCommands(), displayStripSequenceContent(), stripSequenceEditor()
-#include "strptx16/filelist.h" // CZFList
-#include "strptx16/layout.h"   // initializeLayout()
-#include "strptx16/platform.h"
-#include "strptx16/settings.h"
-#include "strptx16/stdtypes.h"
-#include "strptx16/support.h"  // StripSequenceType, CMDLineResultType
-#include "strptx16/txreduce.h" // struct DataDensityEntry
-#include "strptx16/txstrip.h"  // renderStripSequence()
+#include "strptx16/command.h"   // CMDLineResultType
+#include "strptx16/editor.h"    // displayEditorCommands(), displayStripSequenceContent(), stripSequenceEditor()
+#include "strptx16/filelist.h"  // CZFList_initialize(), CZFList_relinquish(), CZFList_itemCount(), CZFList_applyInOrder()
+#include "strptx16/globals.h"   // ISO8601_STR
+#include "strptx16/parseopt.h"  // sortCommandLineArguments(), processCommandLineArguments()
+#include "strptx16/platform.h"  // platformInitialize(), platformRelinquish
+#include "strptx16/settings.h"  // StripSequenceType
+#include "strptx16/support.h"   // generateIdentity()
+#include "strptx16/txdirect.h"  // initializeDeviceDependentPixelTable()
+#include "strptx16/txstrip.h"   // renderStripSequence()
 
-struct SystemSettings settings;
+void platformRelinquish();
 
 // 1. Collect the layout parameters for the published and printed media
 // 2. Calculate (and/or select) published strip height/width
@@ -37,7 +37,7 @@ void printFileData( CZFListDataType* item )
 
    snprintf( iso8601Str,
              sizeof( iso8601Str ),
-             "%04d-%02d-%02dT%02d:%02d:%02d",
+             ISO8601_STR,
              ( datetime->tm_year + 1900 ),
              ( datetime->tm_mon + 1 ),
              datetime->tm_mday,
@@ -47,7 +47,7 @@ void printFileData( CZFListDataType* item )
 
    printf( "File name     : %s" LNFEED, file->name );
    printf( "Full path     : %s" LNFEED, file->path );
-   printf( "File size     : %lu" LNFEED, file->sizeBytes );
+   printf( "File size     : %" FSTR_UINT32_T LNFEED, file->sizeBytes );
    printf( "Time modified : %s" LNFEED LNFEED, iso8601Str );
 }
 
@@ -80,6 +80,7 @@ int main( int argC, char* argV[], char* envP[] )
 
    argV = sortCommandLineArguments( argC, argV );
 
+   // enum CMDLineResultType
    cmdline = processCommandLineArguments( argC, argV, &strip );
 
    if ( cmdln_completed == cmdline )

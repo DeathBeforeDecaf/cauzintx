@@ -1,30 +1,8 @@
 #include "editor.h"
-#include "platform.h"
-#include "settings.h"
-#include "txreduce.h"
-
-struct SystemSettings settings;
-
-extern char* pageName[];
-extern uint16_t pageCount;
-
-extern struct PublishedPageType publishStandard[];
-extern struct PrintedPageType printStandard[];
-
-extern struct DataDensityEntry density[];
-extern uint16_t densityCount;
-
-extern char* linearUnitsName[];
-
-extern struct CommandType command[];
-extern uint16_t commandCount;
-
-extern char    hzwspace[];
-extern uint8_t hzwspace_count;
 
 void displaySequenceInformation()
 {
-   char* stripDensityStr[] =
+   const char* stripDensityStr[] =
    {
       LNFEED "  Very Low",
       LNFEED "  Low",
@@ -133,9 +111,9 @@ void displaySequenceInformation()
       stripHeight - settings.stripLayout.footer.top_m - settings.stripLayout.footer.bottom_m
       - settings.stripLayout.footer.wmark_h;
 
-   if ( stripHeight < settings.pageLayout.MAX_APERTURE_SIZE_INCHES )
+   if ( stripHeight < settings.pageLayout.limitApertureSizeInches )
    {
-      printf( LNFEED "Limit to max aperture size: %1.3f inches", settings.pageLayout.MAX_APERTURE_SIZE_INCHES );
+      printf( LNFEED "Limit to max aperture size: %1.3f inches", settings.pageLayout.limitApertureSizeInches );
 
       printf( LNFEED "Strip Height on Published Media = " );
 
@@ -147,7 +125,7 @@ void displaySequenceInformation()
 
       printf( "%1.4f %s", stripHeight, linearUnitsName[ settings.media.publish.units ] );
 
-      printf( LNFEED "Limit to max aperture size: %1.3f inches" LNFEED, settings.pageLayout.MAX_APERTURE_SIZE_INCHES );
+      printf( LNFEED "Limit to max aperture size: %1.3f inches" LNFEED, settings.pageLayout.limitApertureSizeInches );
    }
 
    printf( LNFEED "Data Density" LNFEED );
@@ -173,7 +151,7 @@ void displaySequenceInformation()
 
       fputs( "  Bits per Scanline( ", stdout );
 
-      printf( "%u )" LNFEED, ( density[ index ].hsync << 3 ) + 14 );
+      printf( "%" FSTR_UINT16_T " )" LNFEED, ( ( ( uint16_t )density[ index ].hsync ) << 3 ) + 14 );
 
 
       fputs( "    Bit Width( ", stdout );
@@ -187,19 +165,19 @@ void displaySequenceInformation()
 
       fputs( "    Lines per Strip( ", stdout );
 
-      printf( "%u )", density[ index ].lineCountPerStrip );
+      printf( "%" FSTR_UINT16_T " )", density[ index ].lineCountPerStrip );
 
       fputs( "  Bytes per Strip( ", stdout );
 
-      printf( "%u )" LNFEED, density[ index ].byteCountPerStrip );
+      printf( "%" FSTR_UINT16_T " )" LNFEED, density[ index ].byteCountPerStrip );
 
       fputs( "    Lines per Watermarked Strip( ", stdout );
 
-      printf( "%u )", density[ index ].lineCountPerWatermarkedStrip );
+      printf( "%" FSTR_UINT16_T " )", density[ index ].lineCountPerWatermarkedStrip );
 
       fputs( "  Bytes per Watermarked Strip( ", stdout );
 
-      printf( "%u )", density[ index ].byteCountPerWatermarkedStrip );
+      printf( "%" FSTR_UINT16_T " )", density[ index ].byteCountPerWatermarkedStrip );
    }
 
    prompt( LNFEED "[Press any key to continue] ", " ", 1, " " );
@@ -223,36 +201,36 @@ void displaySequenceInformation()
 
    i = ( uint16_t )floor( settings.stripLayout.header.hsync_h / density[ index ].bitHeight + 0.51 );
 
-   printf( "%u lines )", i );
+   printf( "%" FSTR_UINT16_T " lines )", i );
 
    fputs( "  Strip vsync line height( ", stdout );
 
    i = ( uint16_t )floor( settings.stripLayout.header.vsync_h / density[ index ].bitHeight + 0.51 );
 
-   printf( "%u lines )", i );
+   printf( "%" FSTR_UINT16_T " lines )", i );
 
 
    fputs( LNFEED "  Bits per Scanline( ", stdout );
 
-   printf( "%u )", ( settings.sequence.encoding[ 0 ].hSync << 3 ) + 14  );
+   printf( "%" FSTR_UINT16_T " )", ( ( ( uint16_t )settings.sequence.encoding[ 0 ].hSync ) << 3 ) + 14  );
 
 
    fputs( "  Scanlines per strip( ", stdout );
 
-   printf( "%u )", density[ index ].lineCountPerStrip );
+   printf( "%" FSTR_UINT16_T " )", density[ index ].lineCountPerStrip );
 
    value = density[ index ].lineCountPerStrip;
 
-   value *= ( settings.sequence.encoding[ 0 ].hSync << 3 ) + 14; // bitsPerLine
+   value *= ( ( ( uint16_t )settings.sequence.encoding[ 0 ].hSync ) << 3 ) + 14; // bitsPerLine
 
 
    fputs( LNFEED "  Total Bits per Strip( ", stdout );
 
-   printf( "%lu )", value );
+   printf( "%" FSTR_UINT32_T " )", value );
 
    fputs( "  Bytes of storage per strip( ", stdout );
 
-   printf( "%u )" LNFEED, density[ index ].byteCountPerStrip );
+   printf( "%" FSTR_UINT16_T " )" LNFEED, density[ index ].byteCountPerStrip );
 
 
    // calculate limits
@@ -274,9 +252,9 @@ void displaySequenceInformation()
 
    fputs( LNFEED "  Total bytes to encode( ", stdout );
 
-   printf( "%lu )", value );
+   printf( "%" FSTR_UINT32_T " )", value );
 
-   if ( value < settings.sequence.MAX_STRIP_SEQUENCE_BYTES )
+   if ( value < settings.sequence.limitMaxSequenceBytes )
    {
       fputs( ": OK", stdout );
    }
@@ -293,7 +271,7 @@ void displaySequenceInformation()
 
          if ( ( 0 < stripCount ) && ( stripCount < 128 ) )
          {
-            printf( LNFEED "  Content will be encoded in %u strips with default settings." LNFEED, stripCount );
+            printf( LNFEED "  Content will be encoded in %" FSTR_UINT8_T " strips with default settings." LNFEED, stripCount );
 
             printf( LNFEED "  The last strip will be %1.2f %s tall." LNFEED,
                     stripHeight, linearUnitsName[ settings.stripLayout.units ] );
@@ -336,7 +314,7 @@ void displayStripSequenceContent()
             fputs( LNFEED, stdout );
          }
 
-         printf( "% 2u: ", ( i + 1 ) );
+         printf( "% 2" FSTR_UINT16_T ": ", ( i + 1 ) );
 
          index = item->name;
 
@@ -406,7 +384,7 @@ void displayStripSequenceContent()
             fputc( ' ', stdout );
          }
 
-         printf( " %lu ", item->sizeBytes );
+         printf( " %" FSTR_UINT32_T " ", item->sizeBytes );
 
          if ( item->name != item->path )
          {
@@ -416,7 +394,7 @@ void displayStripSequenceContent()
          if ( NULL != item->entry.adjunct )
          {
             fputs( LNFEED "       ", stdout );
-            fputs( item->entry.adjunct, stdout );
+            fputs( ( char* )item->entry.adjunct, stdout );
          }
       }
    }
@@ -436,7 +414,7 @@ void displayMediaSettings( char mediaType )
    {
       printf( "Published Media" LNFEED );
 
-      unitStr = linearUnitsName[ settings.media.publish.units ];
+      unitStr = ( char* )linearUnitsName[ settings.media.publish.units ];
 
       width = settings.media.publish.width;
       height = settings.media.publish.height;
@@ -450,7 +428,7 @@ void displayMediaSettings( char mediaType )
    {
       printf( "Printed Media" LNFEED );
 
-      unitStr = linearUnitsName[ settings.media.print.units ];
+      unitStr = ( char* )linearUnitsName[ settings.media.print.units ];
 
       width = settings.media.print.width;
       height = settings.media.print.height;
@@ -523,7 +501,8 @@ void displayMediaSettings( char mediaType )
 
       fputs( LNFEED "  Print Resolution ( ", stdout );
 
-      printf( "%u, %u )", settings.media.print.dots.horizontal, settings.media.print.dots.vertical );
+      printf( "%" FSTR_UINT16_T ", %" FSTR_UINT16_T " )",
+              settings.media.print.dots.horizontal, settings.media.print.dots.vertical );
 
       switch ( settings.media.print.units )
       {
@@ -536,9 +515,49 @@ void displayMediaSettings( char mediaType )
 }
 
 
+bool displayDirectModeSyncValues( bool isCmdLine, char* inputStr )
+{
+   if ( false == isCmdLine )
+   {
+      nearestDeviceDependentResolution( settings.media.print.dots.horizontal,
+                                        settings.media.print.dots.vertical );
+
+      return true;
+   }
+
+   return false;
+}
+
+
+bool displayByteSyncTable( bool isCmdLine, char* inputStr )
+{
+   if ( false == isCmdLine )
+   {
+      displayDataDensityTable(); //  (density, densityCount);
+
+      return true;
+   }
+
+   return false;
+}
+
+
+bool displaySequenceMetrics( bool isCmdLine, char* inputStr )
+{
+   if ( false == isCmdLine )
+   {
+      displaySequenceInformation();
+
+      return true;
+   }
+
+   return false;
+}
+
+
 void displayEditorCommands()
 {
-   char* OutputModeTypeStr[] =
+   const char* OutputModeTypeStr[] =
    {
       "unknown",
       "Direct Render",
@@ -598,11 +617,11 @@ void displayEditorCommands()
       printf( "    n  %1.2f        - inverse scaling factor (photo reduction factor 6.0 to 12.0)" LNFEED, settings.pageLayout.reductionFactor );
    }
 
-   printf( "    x %-10lu   - set maximum byte limit for an encoding sequence" LNFEED,
-           settings.sequence.MAX_STRIP_SEQUENCE_BYTES );
+   printf( "    x %-10" FSTR_UINT32_T "   - set maximum byte limit for an encoding sequence" LNFEED,
+           settings.sequence.limitMaxSequenceBytes );
 
    printf( "    z %1.2f         - set aperture size limit of optical reader in inches" LNFEED LNFEED,
-           settings.pageLayout.MAX_APERTURE_SIZE_INCHES );
+           settings.pageLayout.limitApertureSizeInches );
 
 
    printf( "    m              - display all the published media settings" LNFEED );
@@ -634,7 +653,8 @@ void displayEditorCommands()
    printf( "    p.feed %s - set printer feed format to { sheet, continuous }" LNFEED,
            ( ( sheet == settings.media.print.feed ) ? "sheet  " : "continuous" ) );
 
-   printf( "    p.dots %u,%u - set printer horizontal and vertical resolution (dots/area)" LNFEED,
+   printf( "    p.dots %" FSTR_UINT16_T ",%" FSTR_UINT16_T
+           " - set printer horizontal and vertical resolution (dots/area)" LNFEED,
            settings.media.print.dots.horizontal, settings.media.print.dots.vertical );
 
    printf( LNFEED "Output Mode: %s" LNFEED, OutputModeTypeStr[ settings.outputMode ] );
@@ -658,7 +678,7 @@ bool displayEditorHelp( bool isCmdLine, char* inputStr )
 
 bool appendFilesToSequence( bool isCmdLine, char* inputStr )
 {
-   char* index = ltrim( inputStr + 1, hzwspace, hzwspace_count );
+   char* index = ltrim( inputStr + 1, hzWSpace, hzWSpaceCount );
 
    uint16_t originalCount = CZFList_itemCount();
 
@@ -666,11 +686,11 @@ bool appendFilesToSequence( bool isCmdLine, char* inputStr )
    {
       if ( false == appendInputFiles( index, NULL, settings.searchRecursively ) )
       {
-         fprintf( stderr, "   sorry, couldn't find anything matching: '%s'", index );
+         fprintf( stderr, "   couldn't find anything matching: '%s'", index );
       }
       else if ( 1 < ( CZFList_itemCount() - originalCount ) )
       {
-         printf( "   appended %u files to encode sequence" LNFEED, CZFList_itemCount() - originalCount );
+         printf( "   appended %" FSTR_UINT16_T " files to encode sequence" LNFEED, CZFList_itemCount() - originalCount );
 
          displayStripSequenceContent();
       }
@@ -682,7 +702,7 @@ bool appendFilesToSequence( bool isCmdLine, char* inputStr )
       }
       else
       {
-         printf( "   sorry, couldn't find any matching files to append" LNFEED );
+         printf( "   couldn't find any matching files to append" LNFEED );
       }
 
       return true;
@@ -709,7 +729,7 @@ bool insertFilesIntoSequence( bool isCmdLine, char* inputStr )
 
       if ( mark != index )
       {
-         index = ltrim( mark, hzwspace, hzwspace_count );
+         index = ltrim( mark, hzWSpace, hzWSpaceCount );
 
          if ( offset > 0 )
          {
@@ -723,13 +743,13 @@ bool insertFilesIntoSequence( bool isCmdLine, char* inputStr )
 
             if ( false == appendInputFiles( index, insertOffset, settings.searchRecursively ) )
             {
-               fprintf( stderr, "   sorry, couldn't find anything matching: '%s'", index );
+               fprintf( stderr, "   couldn't find anything matching: '%s'", index );
             }
             else
             {
                if ( 1 < ( CZFList_itemCount() - originalCount ) )
                {
-                  printf( "   inserted %u files to encode sequence." LNFEED, CZFList_itemCount() - originalCount );
+                  printf( "   inserted %" FSTR_UINT16_T " files to encode sequence." LNFEED, CZFList_itemCount() - originalCount );
                }
                else
                {
@@ -786,7 +806,7 @@ bool removeFilesFromSequence( bool isCmdLine, char* inputStr )
             {
                if ( CZFList_removeFrom( start, &item ) )
                {
-                  printf( "   removed item %u with name: %s", offset, item->name );
+                  printf( "   removed item %" FSTR_UINT16_T " with name: %s", offset, item->name );
 
                   if ( NULL != item->entry.adjunct )
                   {
@@ -797,7 +817,7 @@ bool removeFilesFromSequence( bool isCmdLine, char* inputStr )
                }
                else
                {
-                  printf( "   sorry, there is no file# %u to delete from sequence.", offset );
+                  printf( "   couldn't find file# %" FSTR_UINT16_T " to delete from sequence.", offset );
                }
             }
             else if ( ',' == *mark )
@@ -831,7 +851,7 @@ bool removeFilesFromSequence( bool isCmdLine, char* inputStr )
                               fputs( LNFEED, stdout );
                            }
 
-                           printf( "   removed item %u with name: %s", ( start + i + 1 ), item->name );
+                           printf( "   removed item %" FSTR_UINT16_T " with name: %s", ( start + i + 1 ), item->name );
 
                            if ( NULL != item->entry.adjunct )
                            {
@@ -842,33 +862,33 @@ bool removeFilesFromSequence( bool isCmdLine, char* inputStr )
                         }
                         else
                         {
-                           printf( "   sorry, couldn't delete file# %u from sequence.", ( start + i + 1 ) );
+                           printf( "   couldn't delete file# %" FSTR_UINT16_T " from sequence.", ( start + i + 1 ) );
                         }
                      }
                   }
                   else
                   {
-                     printf( "   sorry, file number must be in valid 1 - %u range to delete.", CZFList_itemCount() );
+                     printf( "   file number must be in valid 1 - %" FSTR_UINT16_T " range to delete.", CZFList_itemCount() );
                   }
                }
                else
                {
-                  printf(  "   sorry, couldn't delete file# '%s' from sequence.", index );
+                  printf(  "   couldn't delete file# '%s' from sequence.", index );
                }
             }
             else
             {
-               printf(  "   sorry, didn't understand command: %s", inputStr );
+               printf(  "   didn't understand command: %s", inputStr );
             }
          }
          else
          {
-            printf( "   sorry, couldn't delete file# '%s' from sequence.", index );
+            printf( "   couldn't delete file# '%s' from sequence.", index );
          }
       }
       else
       {
-         printf( "   sorry, there are no files in sequence to delete." );
+         printf( "   there are no files in sequence to delete." );
       }
 
       return true;
@@ -903,7 +923,7 @@ bool listStripSequenceContent( bool isCmdLine, char* inputStr )
       }
       else
       {
-         fputs( "   strip sequence is empty, add some files to get started", stdout );         
+         fputs( "   strip sequence is empty, add some files to get started", stdout );
       }
 
       return true;
@@ -937,53 +957,13 @@ bool quitProgram( bool isCmdLine, char* inputStr )
 }
 
 
-bool displayDirectModeSyncValues( bool isCmdLine, char* inputStr )
-{
-   if ( false == isCmdLine )
-   {
-      nearestDeviceDependentResolution( settings.media.print.dots.horizontal,
-                                        settings.media.print.dots.vertical );
-
-      return true;
-   }
-
-   return false;
-}
-
-
-bool displayByteSyncTable( bool isCmdLine, char* inputStr )
-{
-   if ( false == isCmdLine )
-   {
-      displayDataDensityTable( density, densityCount );
-
-      return true;
-   }
-
-   return false;
-}
-
-
-bool displaySequenceMetrics( bool isCmdLine, char* inputStr )
-{
-   if ( false == isCmdLine )
-   {
-      displaySequenceInformation();
-
-      return true;
-   }
-
-   return false;
-}
-
-
 enum CMDLineResultType stripSequenceEditor()
 {
    enum CMDLineResultType result = cmdln_completed;
 
-   char buffer[ 255 ] = { 0 };
+   char buffer[ 1024 ] = { 0 };
 
-   size_t bufferSize = sizeof( buffer ) / sizeof( buffer[ 0 ] ) - 1;
+   int bufferSize = sizeof( buffer ) / sizeof( buffer[ 0 ] ) - 1;
 
    char* input;
 
@@ -996,7 +976,7 @@ enum CMDLineResultType stripSequenceEditor()
 
    if ( NULL != fgets( buffer, bufferSize, stdin ) )
    {
-      input = trim( buffer, whitespace, ws_count );
+      input = trim( buffer, whitespace, whitespaceCount );
 
       for ( k = 0; k < commandCount; k++ )
       {

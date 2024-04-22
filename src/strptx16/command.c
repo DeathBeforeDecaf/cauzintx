@@ -1,4 +1,4 @@
-#include <stdio.h>  // printf()
+#include <stdlib.h>  // NULL
 
 #include "command.h"
 
@@ -66,7 +66,7 @@ struct CommandType command[] =
    },
 
    {  // j5 baz info - set adjunct information for #5 file
-      50000,
+      50000U,
       "j#",
       "adj#",
       cmdln_completed,

@@ -1,11 +1,9 @@
-#include "platform.h"
+
 #include "txreduce.h"
 
 /// TXReduce.c : Render bitfields scaled for photographic reduction, with given
 ///              ink spread index into postscript for continuous roll printing
 ///////////////////////////////////////////////////////////////////////////////
-
-extern struct SystemSettings settings;
 
 // Table of density entries enumerating byte counts of HSync/VSync selection
 // per col increasing from HSync 0x04 to 0x0C (4-12 nibbles across)
@@ -13,7 +11,7 @@ extern struct SystemSettings settings;
 
 struct DataDensityEntry density[ ( 256 - 32 ) * 9 ] = { 0 };
 
-uint16_t densityCount = sizeof( density ) / sizeof( density[ 0 ] );
+const uint16_t densityCount = sizeof( density ) / sizeof( density[ 0 ] );
 
 
 // hSync 0x04 to 0x0C (4 to 12 nibbles/2 to 6 bytes) per line
@@ -28,7 +26,7 @@ uint16_t densityCount = sizeof( density ) / sizeof( density[ 0 ] );
 // vSync 0x10 =     0.0025" =   1 / 400" (step)
 // vSync 0x40 =     0.0100" =   1 / 100" (low density)
 // vSync 0x60 =     0.0150" =   3 / 200" (medium density)
-// vSync 0x80 =     0.0200" =    1 / 50" (high density)
+// vSync 0x80 =     0.0200" =   1 /  50" (high density)
 
 void populateDataDensityTable( struct StripLayoutType dfltStrip )
 {
