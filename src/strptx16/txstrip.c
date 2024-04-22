@@ -1,14 +1,5 @@
-#include "platform.h"
-#include "settings.h"
+
 #include "txstrip.h"
-#include "txreduce.h"  // struct DataDensityEntry
-
-extern struct SystemSettings settings;
-
-extern struct DevicePixelationRow pixelTable[];
-
-extern struct DataDensityEntry density[];
-
 
 // Column Density (rendered width of individual bits, including left and right margin content)
 //    From *Patent 4,728,783* Column 6, Row 23
@@ -31,81 +22,40 @@ extern struct DataDensityEntry density[];
 
 struct InputFileType* InputFile_initialize( char* filePath, uint32_t sizeBytes, time_t lastModified )
 {
-   struct InputFileType* result;
+	struct InputFileType* result;
 
-   char* index;
+	struct FileEntryType* entry;
 
-   char* extension;
+	char* index;
 
-   uint16_t i;
+	char* extension;
 
-   size_t length;
+	uint16_t i;
 
-   bool hasMatched;
+	size_t length;
 
-   char* executableExtension[] =
-   {
-      "BAT",
-      "COM",
-      "EXE",
-   };
+	bool hasMatched;
 
-   char* binaryExtension[] =
-   {
-      "BMP",
-      "COM",
-      "DLL",
-      "DWG",
-      "EXE",
-      "GIF",
-      "GZ",
-      "ICO",
-      "JPG",
-      "LZ",
-      "MOD",
-      "MP3",
-      "RAR",
-      "TAR",
-      "TGZ",
-      "TIF",
-      "TTF",
-      "WAV",
-      "ZIP",
-   };
+	length = strlen( filePath ) + 1;
 
-   char* textExtension[] =
-   {
-      "ASM",
-      "BAS",
-      "BAT",
-      "C",
-      "CPP",
-      "CSS",
-      "H",
-      "HTM",
-      "INI",
-      "JS",
-      "MD",
-      "PAS",
-      "SVG",
-      "TXT",
-      "XML",
-   };
+	length += sizeof( struct InputFileType );
 
-   length = strlen( filePath ) + 1;
+	result = ( struct InputFileType* )malloc( length );
 
-   length += sizeof( struct InputFileType );
+	if ( NULL != result )
+	{
+		memset( result, 0, length );
 
-   result = ( struct InputFileType* )malloc( length );
+		entry = &(result->entry);
 
-   if ( NULL != result )
-   {
-      memset( result, 0, length );
+		result->sizeBytes = sizeBytes;
 
-      result->sizeBytes = sizeBytes;
-      result->entry.length = sizeBytes;
+//		result->entry.length = sizeBytes;
+		result->entry.length[0] = ( uint8_t )sizeBytes;
+      result->entry.length[1] = ( uint8_t )( sizeBytes >> 8 );
+      result->entry.length[2] = ( uint8_t )( sizeBytes >> 16 );
 
-      result->lastModified = lastModified;
+		result->lastModified = lastModified;
 
       strcpy( result->path, filePath );
 
@@ -148,7 +98,7 @@ struct InputFileType* InputFile_initialize( char* filePath, uint32_t sizeBytes, 
 
          hasMatched = false;
 
-         for ( i = 0; i < sizeof( executableExtension ) / sizeof( executableExtension[ 0 ] ); i++ )
+         for ( i = 0; i < executableExtensionCount; i++ )
          {
             if ( 0 == stricmp( executableExtension[ i ], index ) )
             {
@@ -167,7 +117,7 @@ struct InputFileType* InputFile_initialize( char* filePath, uint32_t sizeBytes, 
 
          hasMatched = false;
 
-         for ( i = 0; i < sizeof( binaryExtension ) / sizeof( binaryExtension[ 0 ] ); i++ )
+         for ( i = 0; i < binaryExtensionCount; i++ )
          {
             if ( 0 == stricmp( binaryExtension[ i ], index ) )
             {
@@ -180,7 +130,7 @@ struct InputFileType* InputFile_initialize( char* filePath, uint32_t sizeBytes, 
 
          if ( false == hasMatched )
          {
-            for ( i = 0; i < sizeof( textExtension ) / sizeof( textExtension[ 0 ] ); i++ )
+            for ( i = 0; i < textExtensionCount; i++ )
             {
                if ( 0 == stricmp( textExtension[ i ], index ) )
                {
@@ -350,7 +300,7 @@ void calculateStripSequenceExtents( uint8_t* stripCount, float* lastStripHeight 
       {
          metaHeaderSize += 1 + 1 + 3; // 3.4.13 Cauzin Type + 3.4.14 OS FileType + 3.4.15 File Length
 //       metaHeaderSize += strlen( item->entry.name ) + 1; // 3.4.16 + 3.4.17 Filename + Terminator
-         metaHeaderSize += strlen( item->path ) + 1; // 3.4.16 + 3.4.17 Filename + Terminator
+         metaHeaderSize += ( uint16_t )strlen( item->path ) + 1; // 3.4.16 + 3.4.17 Filename + Terminator
          metaHeaderSize += 1; // 3.4.18 BlockExpand (adjunct size)
 
          if ( NULL != item->entry.adjunct )
@@ -397,7 +347,7 @@ void calculateStripSequenceExtents( uint8_t* stripCount, float* lastStripHeight 
    {
       bytesRemaining = totalSizeBytes + ( metaHeaderSize + 5 );
 
-      printf( "\n  Meta data consumed %u bytes out of %u meta strip bytes.",
+      printf( LNFEED "  Meta data consumed %" FSTR_UINT16_T " bytes out of %" FSTR_UINT16_T " meta strip bytes.",
               ( metaHeaderSize + 5 ), stripByteCount );
 
       // everything fits in first strip?
@@ -511,14 +461,14 @@ void calculateStripSequenceExtents( uint8_t* stripCount, float* lastStripHeight 
          if ( 0 != bytesRemaining )
          {
             // error too many strips
-            fprintf( stderr, LNFEED "ERROR: Strip sequence requires more than 127 strips to encode." LNFEED );
+            fprintf( stderr, LNFEED "ERROR: Strip sequence requires more than %d strips to encode." LNFEED, SEQUENCE_LIMIT );
          }
       }
    }
    else
    {
       fprintf( stderr, LNFEED "ERROR: Meta strip is too large to fit in a single strip as configured." LNFEED );
-      fprintf( stderr, "   Bytes required: %u   Bytes available: %u" LNFEED,
+      fprintf( stderr, "   Bytes required: %" FSTR_UINT16_T "   Bytes available: %" FSTR_UINT16_T LNFEED,
                ( metaHeaderSize + 5 ), stripByteCount );
    }
 
@@ -598,7 +548,7 @@ bool initializeStripSequence( struct MetaStripType** lStrip )
          {
             metaHeaderSize += 1 + 1 + 3; // 3.4.13 Cauzin Type + 3.4.14 OS FileType + 3.4.15 File Length
 //          metaHeaderSize += strlen( item->entry.name ) + 1; // 3.4.16 + 3.4.17 Filename + Terminator
-            metaHeaderSize += strlen( item->path ) + 1; // 3.4.16 + 3.4.17 Filename + Terminator
+            metaHeaderSize += ( uint16_t )strlen( item->path ) + 1; // 3.4.16 + 3.4.17 Filename + Terminator
             metaHeaderSize += 1; // 3.4.18 BlockExpand (adjunct size)
 
             if ( NULL != item->entry.adjunct )
@@ -610,7 +560,7 @@ bool initializeStripSequence( struct MetaStripType** lStrip )
          }
          else
          {
-            fprintf( stderr, "\n   ERROR: cannot get item %u from CZFList_get()", i + 1 );
+            fprintf( stderr, "\n   ERROR: cannot get item %" FSTR_UINT16_T " from CZFList_get()", i + 1 );
          }
       }
 
@@ -789,7 +739,7 @@ bool initializeStripSequence( struct MetaStripType** lStrip )
       else
       {
          fprintf( stderr, LNFEED "ERROR: Meta strip is too large to fit in a single strip as configured." LNFEED );
-         fprintf( stderr, "   Bytes required: %u   Bytes available: %u" LNFEED,
+         fprintf( stderr, "   Bytes required: %" FSTR_UINT16_T "   Bytes available: %" FSTR_UINT16_T LNFEED,
                   ( ( *lStrip )->prefix.length + 5 ), stripByteCount );
 
          result = false;
@@ -992,9 +942,9 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
 
    FILE* input = NULL;
 
-   struct InputFileType* item;
+   struct InputFileType* item = { 0 };
 
-   struct DataStripType* dStrip;
+   struct DataStripType* dStrip = { 0 };
 
    struct BitField32Type* field;
 
@@ -1046,7 +996,7 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
       }
       else
       {
-         fprintf( stderr, LNFEED "   ERROR: strip# %u does not exist in this sequence.", stripNumber );
+         fprintf( stderr, LNFEED "   ERROR: strip# %" FSTR_UINT8_T " does not exist in this sequence.", stripNumber );
 
          result = false;
 
@@ -1285,20 +1235,24 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
             buffer[ byteIndex ] = item->entry.os_type;
             ++byteIndex;
 
-            buffer[ byteIndex ] = ( uint8_t )( item->entry.length & 0x0000FF );
-            ++byteIndex;
+// TODO:
+//				buffer[ byteIndex ] = ( uint8_t )( item->entry.length & 0x0000FF );
+				buffer[ byteIndex ] = ( uint8_t )( item->entry.length[0] );
+				++byteIndex;
 
-            buffer[ byteIndex ] = ( uint8_t )( ( item->entry.length >> 8 ) & 0x0000FF );
-            ++byteIndex;
+//				buffer[ byteIndex ] = ( uint8_t )( ( item->entry.length >> 8 ) & 0x0000FF );
+				buffer[ byteIndex ] = ( uint8_t )( item->entry.length[1] );
+				++byteIndex;
 
-            buffer[ byteIndex ] = ( uint8_t )( ( item->entry.length >> 16 ) & 0x0000FF );
+//				buffer[ byteIndex ] = ( uint8_t )( ( item->entry.length >> 16 ) & 0x0000FF );
+				buffer[ byteIndex ] = ( uint8_t )( item->entry.length[2] );
             ++byteIndex;
 
 //          memcpy( buffer + byteIndex, item->entry.name, strlen( item->entry.name ) );
             memcpy( buffer + byteIndex, item->path, strlen( item->path ) );
 
 //          byteIndex += strlen( item->entry.name );
-            byteIndex += strlen( item->path );
+            byteIndex += ( uint16_t )strlen( item->path );
 
             buffer[ byteIndex ] = item->entry.terminator;
             ++byteIndex;
@@ -1315,7 +1269,7 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
          }
          else
          {
-            fprintf( stderr, LNFEED "   ERROR: cannot get item %u from CZFList_get()", i + 1 );
+            fprintf( stderr, LNFEED "   ERROR: cannot get item %" FSTR_UINT16_T " from CZFList_get()", i + 1 );
          }
       }
    }
@@ -1332,8 +1286,8 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
             input = fopen( item->path, "rb" );
          }
          else
-         {
-            fprintf( stderr, LNFEED "   ERROR: cannot get item %u from CZFList_get()", *inputFile + 1 );
+         {                                                     
+            fprintf( stderr, LNFEED "   ERROR: cannot get item %" FSTR_UINT16_T " from CZFList_get()", *inputFile + 1 );
 
             result = false;
          }
@@ -1376,7 +1330,7 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
 
                   remainingBytes = 0;
 
-                  *inputByteOffset += bytesRead;
+                  *inputByteOffset += ( uint32_t )bytesRead;
 
                   fclose( input );
 
@@ -1396,7 +1350,7 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
                {
                   byteIndex += bytesRead;
 
-                  *inputByteOffset += bytesRead;
+                  *inputByteOffset += ( uint32_t )bytesRead;
 
                   fclose( input );
 
@@ -1441,7 +1395,7 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
                else if ( feof( input ) )
                {
                   fprintf( stderr, LNFEED "   ERROR: input file %s smaller than expected.", item->path );
-                  fprintf( stderr, LNFEED "   remainingBytes = %u, bytesRead = %u, item->sizeBytes = %lu",
+                  fprintf( stderr, LNFEED "   remainingBytes = %" FSTR_UINT16_T ", bytesRead = %" FSTR_SIZE_T ", item->sizeBytes = %" FSTR_UINT32_T,
                                    remainingBytes, bytesRead, item->sizeBytes );
 
                   fclose( input );
@@ -1454,7 +1408,7 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
                {
                   byteIndex += bytesRead;
 
-                  *inputByteOffset += bytesRead;
+                  *inputByteOffset += ( uint32_t )bytesRead;
 
                   fclose( input );
 
@@ -1693,11 +1647,7 @@ bool saveBitfield( struct MetaStripType* lStrip, uint8_t stripNumber )
       field = lStrip->field;
    }
 
-#ifdef _DOS
-   _snprintf( path, sizeof( path ) - 1, "_CAUZIN_.TX\\S%03u.CZN", stripNumber );
-#else
-   snprintf( path, sizeof( path ) - 1, "_CAUZIN_.TX/S%03u.CZN", stripNumber );
-#endif
+   snprintf( path, sizeof( path ) - 1, "_cauzin_.tx" PATH_SEPARATOR_STR "s%03" FSTR_UINT8_T ".czn", stripNumber );
 
    result &= BitField32_save( field, path );
 
@@ -1751,11 +1701,7 @@ bool loadBitfield( struct MetaStripType* lStrip, uint8_t stripNumber )
       field = lStrip->field;
    }
 
-#ifdef _DOS
-   _snprintf( path, sizeof( path ) - 1, "_CAUZIN_.TX\\S%03u.CZN", stripNumber );
-#else
-   snprintf( path, sizeof( path ) - 1, "_CAUZIN_.TX/S%03u.CZN", stripNumber );
-#endif
+   snprintf( path, sizeof( path ) - 1, "_cauzin_.tx" PATH_SEPARATOR_STR "s%03" FSTR_UINT8_T ".czn", stripNumber );
 
    result &= BitField32_load( field, path );
 
@@ -1928,28 +1874,28 @@ bool renderStripSequence()
                         if ( false == result )
                         {
                            // strip encode error
-                           fprintf( stderr, LNFEED "   sorry, could not save strip# %u intermediate results.",
+                           fprintf( stderr, LNFEED "   sorry, could not save strip# %" FSTR_UINT8_T " intermediate results.",
                                     stripNumber );
                         }
                      }
                      else
                      {
                         // strip encode error
-                        fprintf( stderr, LNFEED "   sorry, could not encode strip# %u for postscript conversion.",
+                        fprintf( stderr, LNFEED "   sorry, could not encode strip# %" FSTR_UINT8_T " for postscript conversion.",
                                  stripNumber );
                      }
                   }
                   else
                   {
                      // buffer allocation error
-                     fprintf( stderr, LNFEED "   sorry, could not allocate byte buffer for strip# %u storage.",
+                     fprintf( stderr, LNFEED "   sorry, could not allocate byte buffer for strip# %" FSTR_UINT8_T " storage.",
                               stripNumber );
                   }
                }
                else
                {
                   // bitfield allocation error
-                  fprintf( stderr, LNFEED "   sorry, could not allocate bitfield for strip# %u storage.", stripNumber );
+                  fprintf( stderr, LNFEED "   sorry, could not allocate bitfield for strip# %" FSTR_UINT8_T " storage.", stripNumber );
                }
 
                result &= relinquishByteBuffer( lStrip, stripNumber );
@@ -1988,7 +1934,7 @@ bool renderStripSequence()
                   else
                   {
                      // bitfield allocation error
-                     fprintf( stderr, LNFEED "   sorry, could not allocate bitfield for strip# %u storage.", stripNumber );
+                     fprintf( stderr, LNFEED "   sorry, could not allocate bitfield for strip# %" FSTR_UINT8_T " storage.", stripNumber );
                   }
 
                   relinquishBitfield( lStrip, stripNumber );
@@ -2010,7 +1956,7 @@ bool renderStripSequence()
       else
       {
          // strip header allocation error
-         fprintf( stderr, LNFEED "   sorry, cannot encode more than 127 strips in a sequence." );
+         fprintf( stderr, LNFEED "   sorry, cannot encode more than %d strips in a sequence.", SEQUENCE_LIMIT );
       }
    }
    else

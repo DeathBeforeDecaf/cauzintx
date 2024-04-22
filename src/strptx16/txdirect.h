@@ -2,15 +2,18 @@
 #define CZSTRIP_H
 
 #include <math.h>  // floor()
+
+#include "globals.h"
+#include "layout.h" // struct PublishedPageType, struct PrintedPageType
+#include "platform.h"
+#include "settings.h"
 #include "stdtypes.h"
-#include "layout.h"
+#include "txreduce.h"
 #include "txstrip.h"
 
 /// TXDirect.h : Render bitfields directly in integral, device-dependent pixel
 ///              resolution printing postscript bitmaps on individual sheets
 ///////////////////////////////////////////////////////////////////////////////
-
-
 
 // Given a collection of common device resolutions, calculate valid hSync/vSync settings
 // that divide evenly into an integral number of pixels and remain within the
@@ -58,6 +61,9 @@ struct DevicePixelationRow
    struct VPixelationEntry vPixel[ 8 ];
 };
 
+extern struct DevicePixelationRow pixelTable[6]; // 300, 600, 1200, 2400, 4800, 9600
+
+extern const uint8_t pixelRowCount;
 
 void initializeDeviceDependentPixelTable();
 

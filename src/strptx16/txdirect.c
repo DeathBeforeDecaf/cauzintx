@@ -1,21 +1,12 @@
-#include "platform.h"
-#include "settings.h"
 #include "txdirect.h"
-#include "txreduce.h"
 
 /// TXDirect.c : Render bitfields directly in integral, device-dependent pixel
 ///              resolution printing postscript bitmaps on individual sheets
 ///////////////////////////////////////////////////////////////////////////////
 
-extern struct SystemSettings settings;
-
-extern struct PublishedPageType publishStandard[];
-extern struct PrintedPageType printStandard[];
-
 struct DevicePixelationRow pixelTable[ 6 ] = { 0 }; // 300, 600, 1200, 2400, 4800, 9600
 
-uint8_t pixelRowCount = sizeof( pixelTable ) / sizeof( pixelTable[ 0 ] );
-
+const uint8_t pixelRowCount = sizeof( pixelTable ) / sizeof( pixelTable[ 0 ] );
 
 // populate Device-Dependent Pixel Table
 void initializeDeviceDependentPixelTable()
@@ -172,7 +163,7 @@ void nearestDeviceDependentResolution( uint16_t xDPI, uint16_t yDPI )
    uint8_t hSync = 0;
    uint8_t vSync;
 
-   printf( "Nearest Device-Dependent Resolution (Native %ux%u Render)" LNFEED, xDPI, yDPI );
+   printf( "Nearest Device-Dependent Resolution (Native %" FSTR_UINT16_T "x%" FSTR_UINT16_T " Render)" LNFEED, xDPI, yDPI );
 
    if ( ( xDPI > 0 ) && ( 0 == ( xDPI % 300U ) ) )
    {
@@ -195,7 +186,7 @@ void nearestDeviceDependentResolution( uint16_t xDPI, uint16_t yDPI )
             break;
       };
 
-      printf( LNFEED "dotsPerUnitWidth = %u" LNFEED, pixelTable[ dpi ].resolution );
+      printf( LNFEED "dotsPerUnitWidth = %" FSTR_UINT16_T LNFEED, pixelTable[ dpi ].resolution );
 
       hSync = 9;
 
@@ -207,7 +198,7 @@ void nearestDeviceDependentResolution( uint16_t xDPI, uint16_t yDPI )
          {
             if ( pixelTable[ dpi ].hPixel[ hSync ].minDotsPerHPixel == pixelTable[ dpi ].hPixel[ hSync ].maxDotsPerHPixel )
             {
-               printf( "   hSync = 0x%02X, stripWidth = %f @ %u dPP (%3.6f)" LNFEED,
+               printf( "   hSync = 0x%02X, stripWidth = %f @ %" FSTR_UINT16_T " dPP (%3.6f)" LNFEED,
                        hSync + 4,
                        pixelTable[ dpi ].hPixel[ hSync ].stripWidth,
                        pixelTable[ dpi ].hPixel[ hSync ].dotsPerHPixel,
@@ -215,7 +206,7 @@ void nearestDeviceDependentResolution( uint16_t xDPI, uint16_t yDPI )
             }
             else
             {
-               printf( "   hSync = 0x%02X, stripWidth = %f @ %u dPP (%3.6f): min(%u), max(%u)" LNFEED,
+               printf( "   hSync = 0x%02X, stripWidth = %f @ %" FSTR_UINT16_T " dPP (%3.6f): min(%" FSTR_UINT16_T "), max(%" FSTR_UINT16_T ")" LNFEED,
                        hSync + 4,
                        pixelTable[ dpi ].hPixel[ hSync ].stripWidth,
                        pixelTable[ dpi ].hPixel[ hSync ].dotsPerHPixel,
@@ -249,13 +240,13 @@ void nearestDeviceDependentResolution( uint16_t xDPI, uint16_t yDPI )
             break;
       };
 
-      printf( LNFEED "dotsPerUnitHeight = %u" LNFEED, yDPI );
+      printf( LNFEED "dotsPerUnitHeight = %" FSTR_UINT16_T LNFEED, yDPI );
 
       for ( vSync = 0; vSync < 8; vSync++ )
       {
          if ( 0 != pixelTable[ dpi ].vPixel[ vSync ].dotsPerVPixel )
          {
-               printf( "   vSync = 0x%02X @ %u dPP (%3.6f)" LNFEED,
+               printf( "   vSync = 0x%02X @ %" FSTR_UINT16_T " dPP (%3.6f)" LNFEED,
                        pixelTable[ dpi ].vPixel[ vSync ].vSync,
                        pixelTable[ dpi ].vPixel[ vSync ].dotsPerVPixel,
                        pixelTable[ dpi ].vPixel[ vSync ].bitHeight );
@@ -310,6 +301,13 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
 
    time_t epochDeltaT;
    struct tm* now;
+
+   pageCount = stripCount / ( uint8_t )strips_per_page;
+
+   if ( 0 != ( stripCount % strips_per_page ) )
+   {
+      pageCount++;
+   }
 
    if ( 1 < stripNumber )
    {
@@ -367,28 +365,23 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
 
       if ( NULL != ( output = fopen( settings.sequence.outputFilename, "wb" ) ) )
       {
-         pageCount = stripCount / ( uint8_t )strips_per_page;
 
-         if ( 0 != ( stripCount % strips_per_page ) )
-         {
-            pageCount++;
-         }
 
          // prepend the postscript header
          fputs( "%!PS-Adobe-3.0\n", output );
 
-         fprintf( output, "%%%%Pages: %u\n", pageCount );
+         fprintf( output, "%%%%Pages: %" FSTR_UINT8_T "\n", pageCount );
 
          fputs( "%%DocumentData: Clean7Bit\n", output );
 
-         fprintf( output, "%%%%Creator: The New Laser Archivizt v0.0.1\n" );
+         fprintf( output, "%%%%Creator: " IDENTITY_STR " v" VERSION_STR "\n" );
          fprintf( output, "%%%%Title: (%s)\n", settings.sequence.outputFilename );
 
          time( &epochDeltaT );
 
          if ( NULL != ( now = localtime( &epochDeltaT ) ) )
          {
-            fprintf( output, "%%%%CreationDate: (%04d-%02d-%02dT%02d:%02d:%02d)\n",
+            fprintf( output, "%%%%CreationDate: (" ISO8601_STR ")\n",
                      1900 + now->tm_year, 1 + now->tm_mon, now->tm_mday,
                      now->tm_hour, now->tm_min, now->tm_sec );
          }
@@ -458,34 +451,62 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
    {
       if ( 1 == ( stripNumber % strips_per_page ) )
       {
-         fprintf( output, "\n%%%%Page: %u %u\n", pageNumber, pageNumber );
+         fprintf( output, "\n%%%%Page: %" FSTR_UINT8_T " %" FSTR_UINT8_T "\n", pageNumber, pageNumber );
 
          fputs( "%%BeginPageSetup\n", output );
          fputs( "/pgsave save def\n", output );
-         fprintf( output, "72 %u div setlinewidth\n\n", dots_per_inch );
+         fprintf( output, "72 %" FSTR_UINT16_T " div setlinewidth\n\n", dots_per_inch );
 
          // emit output image w/o halftone @ DPI freq 0 angle
          fputs( "isColor\n", output );
          fputs( "{\n", output );
          fputs( "   currentcolorscreen\n", output );
          fputs( "   exch pop exch pop\n", output );
-         fprintf( output, "   %u exch 0 exch\n", dots_per_inch );
+         fprintf( output, "   %" FSTR_UINT16_T " exch 0 exch\n", dots_per_inch );
          fputs( "   setcolorscreen\n", output );
          fputs( "}\n", output );
          fputs( "{\n", output );
          fputs( "   currentscreen\n", output );
          fputs( "   exch pop exch pop\n", output );
-         fprintf( output, "   %u exch 0 exch\n", dots_per_inch );
+         fprintf( output, "   %" FSTR_UINT16_T " exch 0 exch\n", dots_per_inch );
          fputs( "   setscreen\n", output );
          fputs( "}\n", output );
          fputs( "ifelse\n", output );
 
          fputs( "%%EndPageSetup\n\n", output );
 
-
          fprintf( output, "/Courier findfont\n" );
          fprintf( output, "10 scalefont\n" );
          fprintf( output, "setfont\n" );
+
+         if ( 24 <= bottom )
+         {
+            // printed page footer
+            fputs( "\n% page footer timestamp and page number\n", output );
+            fprintf( output, "gsave\n" );
+
+            fprintf( output, "   /Courier findfont\n" );
+            fprintf( output, "   8.0 scalefont\n" );
+            fprintf( output, "   setfont\n\n" );
+
+            fprintf( output, "   %" FSTR_UINT16_T " %" FSTR_UINT16_T " moveto\n", left, 20 );
+
+            if ( ( NULL != ( now = localtime( &epochDeltaT ) ) ) && ( 1 == pageNumber ) )
+            {
+               fprintf( output, "   (" ISO8601_STR ")\n",
+                        1900 + now->tm_year, 1 + now->tm_mon, now->tm_mday,
+                        now->tm_hour, now->tm_min, now->tm_sec );
+               fprintf( output, "   show\n" );
+            }
+
+            fprintf( output, "   %" FSTR_UINT16_T " %" FSTR_UINT16_T " moveto\n", right, 20 );
+
+            fprintf( output, "   (%s: Page %" FSTR_UINT8_T "/%" FSTR_UINT8_T ")\n", settings.sequence.stripID, pageNumber, pageCount );
+            fprintf( output, "   dup stringwidth pop neg\n" );
+            fprintf( output, "   0 rmoveto\n" );
+            fprintf( output, "   show\n" );
+            fprintf( output, "grestore\n\n" );
+         }
       }
       else
       {
@@ -494,40 +515,89 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
 
       if ( 1 != stripNumber )
       {
-         fprintf( output, "\n%% strip #%u\n", stripNumber );
+         fprintf( output, "\n%% strip #%" FSTR_UINT8_T "\n", stripNumber );
 
          fprintf( output, "gsave\n" );
          fprintf( output, "   90 rotate\n" );
-         fprintf( output, "   %u -%u moveto\n", bottom, 9 + left + hShift );
+         fprintf( output, "   %" FSTR_UINT16_T " -%" FSTR_UINT16_T " moveto\n", bottom, 9 + left + hShift );
 
          if ( stripNumber < 10 )
          {
-            fprintf( output, "   ( %u.) show\n", stripNumber );
+            fprintf( output, "   ( %" FSTR_UINT8_T ".) show\n", stripNumber );
          }
          else if ( stripNumber < 100 )
          {
-            fprintf( output, "   (%u.) show\n", stripNumber );
+            fprintf( output, "   (%" FSTR_UINT8_T ".) show\n", stripNumber );
          }
          else // 100+
          {
-            fprintf( output, "   (%u) show\n", stripNumber );
+            fprintf( output, "   (%" FSTR_UINT8_T ") show\n", stripNumber );
          }
       }
       else
       {
-         fprintf( output, "\n%% strip #%u and description\n", stripNumber );
+         fprintf( output, "\n%% strip #%" FSTR_UINT8_T " and description\n", stripNumber );
 
          fprintf( output, "gsave\n" );
          fprintf( output, "   90 rotate\n" );
-         fprintf( output, "   %u -%u moveto\n", bottom, 9 + left );
+         fprintf( output, "   %" FSTR_UINT16_T " -%" FSTR_UINT16_T " moveto\n", bottom, 9 + left );
 
          if ( NULL != settings.sequence.verboseDescription )
          {
-            fprintf( output, "   ( %u. %s) show\n", stripNumber, settings.sequence.verboseDescription );
+            char* index = settings.sequence.verboseDescription;
+            char* lineStart = settings.sequence.verboseDescription;
+
+            uint16_t lineCount = 0;
+
+            while ( NULL != lineStart )
+            {
+               while ( ( '\0' != *index ) && ( '\n' != *index ) )
+               {
+                  ++index;
+               }
+
+               if ( '\n' == *index )
+               {
+                  *index = '\0';
+
+                  if ( 0 != lineCount )
+                  {
+                     fprintf( output, "   %" FSTR_UINT16_T " -%1.1f moveto\n", bottom, ( 14.4f * lineCount ) + ( 9 + left ) );
+
+                     fprintf( output, "   (    %s) show\n", lineStart );
+                  }
+                  else
+                  {
+                     fprintf( output, "   ( %" FSTR_UINT8_T ". %s) show\n", stripNumber, lineStart );
+                  }
+
+                  *index = '\n';
+
+                  ++index;
+                  lineStart = index;
+
+                  ++lineCount;
+               }
+               else
+               {
+                  if ( 0 != lineCount )
+                  {
+                     fprintf( output, "   %" FSTR_UINT16_T " -%1.1f moveto\n", bottom, ( 14.4f * lineCount ) + ( 9 + left ) );
+
+                     fprintf( output, "   (    %s) show\n", lineStart );
+                  }
+                  else
+                  {
+                     fprintf( output, "   ( %" FSTR_UINT8_T ". %s) show\n", stripNumber, lineStart );
+                  }
+
+                  lineStart = NULL;
+               }
+            }
          }
          else
          {
-            fprintf( output, "   ( %u. ) show\n", stripNumber );
+            fprintf( output, "   ( %" FSTR_UINT8_T ". ) show\n", stripNumber );
          }
       }
 
@@ -537,7 +607,7 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
 
       fprintf( output, "72 300 div setlinewidth\n" );
 
-      fprintf( output, "%2.1f %u nearest moveto\n", 11.0f + left + hShift, bottom );
+      fprintf( output, "%2.1f %" FSTR_UINT16_T " nearest moveto\n", 11.0f + left + hShift, bottom );
 
       fprintf( output, "0 72 600 div rmoveto\n\n" );
 
@@ -590,9 +660,8 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
       fprintf( output, "   stroke\n" );
       fprintf( output, "grestore\n" );
 
-      fprintf( output, "72 %u div setlinewidth\n\n", dots_per_inch );
 
-      fprintf( output, "%% upper fiducial (circular registration mark) strip #%u\n", stripNumber );
+      fprintf( output, "%% upper fiducial (circular registration mark) strip #%" FSTR_UINT8_T "\n", stripNumber );
 
       fprintf( output, "gsave\n" );
       fprintf( output, "   /Courier findfont\n" );
@@ -639,15 +708,15 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
 
       if ( stripNumber < 10 )
       {
-         fprintf( output, "   ( %u) show\n", stripNumber );
+         fprintf( output, "   ( %" FSTR_UINT8_T ") show\n", stripNumber );
       }
       else if ( stripNumber < 100 )
       {
-         fprintf( output, "   (%u) show\n", stripNumber );
+         fprintf( output, "   (%" FSTR_UINT8_T ") show\n", stripNumber );
       }
       else
       {
-         fprintf( output, "   (%u) show\n", stripNumber % 100 );
+         fprintf( output, "   (%" FSTR_UINT8_T ") show\n", stripNumber % 100 );
       }
 
       fprintf( output, "grestore\n\n" );
@@ -665,10 +734,10 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
 //    fprintf( output, "stroke\n" );
 //    fprintf( output, "[] 0 setdash\n\n" );
 
-      fprintf( output, "%% softstrip bitmap strip #%u\n", stripNumber );
+      fprintf( output, "%% softstrip bitmap strip #%" FSTR_UINT8_T "\n", stripNumber );
       fprintf( output, "gsave\n" );
 
-      fprintf( output, "   /strip%03u %u string def\n", stripNumber, ( field->colSize + 2 ) / 8 );
+      fprintf( output, "   /strip%03" FSTR_UINT8_T " %" FSTR_UINT16_T " string def\n", stripNumber, ( field->colSize + 2 ) / 8 );
 
       fprintf( output, "   %2.6f %2.6f nearest translate\n",
                107.0f - ( field->colSize * 36.0f * density.bitWidth ) + left + hShift,
@@ -677,7 +746,7 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
       fprintf( output, "   %2.6f %2.6f nearest scale\n", density.bitWidth * field->colSize * 72.0f,
                density.bitHeight * field->rowSize * 72.0f );
 
-      fprintf( output, "   %u %u 1 [%u 0 0 -%u 0 %u] { currentfile strip%03u readhexstring pop }\n",
+      fprintf( output, "   %" FSTR_UINT16_T " %" FSTR_UINT16_T " 1 [%" FSTR_UINT16_T " 0 0 -%" FSTR_UINT16_T " 0 %" FSTR_UINT16_T "] { currentfile strip%03" FSTR_UINT8_T " readhexstring pop }\n",
                field->colSize, field->rowSize, field->colSize, field->rowSize, field->rowSize, stripNumber );
 
       rawBytes = field->colSize / 8;
@@ -689,7 +758,7 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
 
       rawBytes *= field->rowSize;
 
-      fprintf( output, "%%%%BeginData: %lu Hex Bytes\n", rawBytes );
+      fprintf( output, "%%%%BeginData: %" FSTR_UINT32_T " Hex Bytes\n", rawBytes );
 
       fputs( "image\n", output );
 

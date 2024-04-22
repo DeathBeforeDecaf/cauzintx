@@ -1,9 +1,12 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#include "stdtypes.h"
+#include "globals.h"
+#include "layout.h" // LinearUnits, MediaLayoutType
 #include "platform.h"
-#include "layout.h"
+#include "stdtypes.h"
+
+extern struct SystemSettings settings;
 
 enum OutputModeType
 {
@@ -13,11 +16,11 @@ enum OutputModeType
 };
 
 // Published Strip Layout (in physical units)
-// 1.666 inches width of first strip & alignment marks
+//  1.666 inches width of first strip & alignment marks
 // ~0.775 inches horizontal displacement
 // ~0.775 * 2 + 0.11 + 1.66
-//   0.775 = offset between strips on multistrip page
-//   0.11 = strip right margin
+//  0.775 = offset between strips on multistrip page
+//  0.11 = strip right margin
 
 // Strip Layout
 /////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +80,7 @@ struct PageLayoutType
    float reductionFactor;
    float inkSpreadIndex;
 
-   float MAX_APERTURE_SIZE_INCHES; // 8.75f probably closer to reality
+   float limitApertureSizeInches; // 8.75f probably closer to reality
 
    // postscript horizontal strip placement
    uint16_t FIRST_STRIP_WIDTH_POINTS;
@@ -106,7 +109,7 @@ enum EncodingOverrideType
    strip_crc        = 0x04,
    strip_watermark  = 0x08
 }
-const encode;
+; // const encode;
 
 
 struct StripSequenceType
@@ -119,7 +122,7 @@ struct StripSequenceType
 
    struct SequencedEncodingType encoding[ 1 + SEQUENCE_LIMIT ];
 
-   uint32_t MAX_STRIP_SEQUENCE_BYTES;
+   uint32_t limitMaxSequenceBytes;
 };
 
 // encapsulates the data model for encoding strips from a list of files into a sequence of bitfields,
@@ -141,12 +144,14 @@ struct SystemSettings // (1448 bytes)
 
    struct StripSequenceType sequence;
 
-   char workingDirectory[ _MAX_PATH ];
+   char workingDirectory[ _MAX_PATH + 14 ];
 };
 
 
 extern const char whitespace[];
 
-extern const uint8_t ws_count;
+extern const uint8_t whitespaceCount;
+
+void calculateStripHeight( struct StripLayoutType* dfltStrip, struct MediaLayoutType media );
 
 #endif

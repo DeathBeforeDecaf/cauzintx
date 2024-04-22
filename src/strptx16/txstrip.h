@@ -5,17 +5,23 @@
 #include <string.h>  // strlen(), _strnicmp()
 #include <time.h>    // time_t
 
-#include "stdtypes.h"
 #include "bitfld32.h"
 #include "crc16.h"
 #include "filelist.h"
+#include "globals.h"
+#include "platform.h"
+#include "settings.h"  // struct SystemSettings
+#include "stdtypes.h"
+#include "txdirect.h"  // struct DevicePixelationRow, pixelRowCount
+#include "txreduce.h"  // struct DataDensityEntry, populateDataDensityTable(), displayDataDensityTable()
 
 struct FileEntryType
 {
    uint8_t   category;     // 3.4.13 (1)
    uint8_t   os_type;      // 3.4.14 (1)
-   uint32_t  length : 24;  // 3.4.15 (3) file length on disk(max 16,777,215 bytes)
-   char*     name;         // 3.4.16 (1<-->n bytes) null terminated filename
+// uint32_t  length : 24;  // 3.4.15 (3) file length on disk(max 16,777,215 bytes)
+	uint8_t   length[3];    // 3.4.15 (3) file length on disk(max 16,777,215 bytes)
+	char*     name;         // 3.4.16 (1<-->n bytes) null terminated filename
    uint8_t   terminator;   // 3.4.17 (1) filename terminator, 0xFF indicates executable content
    uint8_t   adjunct_size; // 3.4.18 (1) size of file metadata trailing
    uint8_t*  adjunct;      // 3.4.18+ (0-255 bytes) metadata (expansion block)
@@ -126,7 +132,7 @@ enum CZNStripType
    cznstrip_data = 0x00,
    cznstrip_key  = 0x01, // (not supported) proprietary sequence header
 }
-const cznstrip;
+; // const cznstrip;
 
 
 // sequence hostOS
@@ -141,7 +147,7 @@ enum CZNOpSysType
    cznopsys_mac     = 0x15,
    cznopsys_reserved= 0x20, // accepted as PC/MS-DOS
 }
-const cznopsys;
+; // const cznopsys;
 
 
 // file content
@@ -153,7 +159,7 @@ enum CZNFileType
    cznfile_token    = 0x04,
    cznfile_compress = 0x10,
 }
-const cznfile;
+; // const cznfile;
 
 
 enum CZNAplDOSType // clientOS: Apple DOS
@@ -166,7 +172,7 @@ enum CZNAplDOSType // clientOS: Apple DOS
    cznapl_a_type   = 0x20, // not supported
    cznapl_b_type   = 0x40, // not supported
 }
-const cznapldos;
+; // const cznapldos;
 
 
 enum CZNProDOSType // clientOS: Apple ProDOS
@@ -178,7 +184,7 @@ enum CZNProDOSType // clientOS: Apple ProDOS
    cznpro_obj      = 0xFE,
    cznpro_sys      = 0xFF,
 }
-const cznprodos;
+; // const cznprodos;
 
 
 enum CZNMacType // clientOS: Apple Macintosh
@@ -186,7 +192,7 @@ enum CZNMacType // clientOS: Apple Macintosh
    cznmac_binary   = 0x00,
    cznmac_text     = 0x01,
 }
-const cznmacdos;
+; // const cznmacdos;
 
 
 enum CZNPCDOSType // clientOS: PC/MS-DOS
@@ -194,7 +200,7 @@ enum CZNPCDOSType // clientOS: PC/MS-DOS
    cznpc_exe     = 0x00, // *.exe, *.com, *.bat
    cznpc_other   = 0x01, // (everything else)
 }
-const cznpcdos;
+; // const cznpcdos;
 
 
 struct InputFileType* InputFile_initialize( char* filePath, uint32_t sizeBytes, time_t lastModified );
@@ -211,21 +217,16 @@ void calculateStripSequenceExtents( uint8_t* stripCount, float* lastStripHeight 
 // relinquish strip chain
 
 bool initializeStripSequence( struct MetaStripType** lStrip );
-
 bool initializeBitfield( struct MetaStripType* lStrip, uint8_t stripNumber );
-
 bool initializeByteBuffer( struct MetaStripType* lStrip, uint8_t stripNumber );
 
 bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_t* inputFile, uint32_t* inputByteOffset );
 
 bool saveBitfield( struct MetaStripType* lStrip, uint8_t stripNumber );
-
 bool loadBitfield( struct MetaStripType* lStrip, uint8_t stripNumber );
 
 bool relinquishByteBuffer( struct MetaStripType* lStrip, uint8_t stripNumber );
-
 bool relinquishBitfield( struct MetaStripType* lStrip, uint8_t stripNumber );
-
 void relinquishStripSequence( struct MetaStripType** lStrip );
 
 bool renderStripSequence();

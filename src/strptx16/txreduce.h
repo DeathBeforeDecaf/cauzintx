@@ -1,8 +1,10 @@
 #ifndef TXREDUCE_H
 #define TXREDUCE_H
 
+#include "layout.h" // calculateStripHeight()
+#include "platform.h"
+#include "settings.h"  // struct SystemSettings, struct StripLayoutType
 #include "stdtypes.h"
-#include "settings.h"
 #include "support.h"
 
 /// TXReduce.h : Render bitfields scaled for photographic reduction, with given
@@ -27,10 +29,12 @@ struct DataDensityEntry
    double bitHeight;
 };
 
-void populateDataDensityTable( struct StripLayoutType dfltStrip );
+void populateDataDensityTable( struct StripLayoutType );
 
 void displayDataDensityTable();
 
 // bool generatePostscriptOutputForReduction( struct MetaStripType* lStrip, uint8_t stripNumber, uint8_t stripCount );
+
+extern struct DataDensityEntry density[];
 
 #endif

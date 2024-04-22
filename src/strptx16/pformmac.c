@@ -1,79 +1,6 @@
-#ifdef _DOS
-#else
+// Platform-Specific implementation (Mac)
 
-#include <errno.h> // errno
-#include <signal.h>
-#include <stdio.h>
-#include <string.h> // strerror()
-#include <termios.h> // TCSAFLUSH
-#include <unistd.h>  // STDIN_FILENO
-
-#endif
-
-#include <stdlib.h>
-#include "platform.h"
-#include "stdtypes.h"
-
-
-#ifdef _DOS
-
-float strtof( char* inputStr, char** mark )
-{
-   if ( NULL != mark )
-   {
-      *mark = inputStr;
-
-      // [whitespace] [sign] [digits] [.digits] [ {d | D | e | E }[sign]digits]
-      while ( ( ' ' == **mark ) || ( '\t' == **mark ) )
-      {
-         ++( *mark );
-      }
-
-      if ( ( '-' == **mark ) || ( '+' == **mark ) )
-      {
-         ++( *mark );
-      }
-
-      while ( ( '0' <= **mark ) && ( '9' >= **mark ) )
-      {
-         ++( *mark );
-      }
-
-      if ( '.' == **mark )
-      {
-         ++( *mark );
-
-         while ( ( '0' <= **mark ) && ( '9' >= **mark ) )
-         {
-            ++( *mark );
-         }
-      }
-
-      if ( ( 'E' == **mark ) || ( 'e' == **mark ) || ( 'd' == **mark ) || ( 'D' == **mark ) )
-      {
-         ++( *mark );
-      }
-
-      if ( ( '-' == **mark ) || ( '+' == **mark ) )
-      {
-         ++( *mark );
-      }
-
-      while ( ( '0' <= **mark ) && ( '9' >= **mark ) )
-      {
-         ++( *mark );
-      }
-   }
-
-   return ( float )atof( inputStr );
-}
-
-void platformInitialize( void ) { }
-
-void platformRelinquish( void ) { }
-
-
-#else
+#include "pformmac.h"
 
 static struct termios sysTerm;
 
@@ -421,6 +348,343 @@ const char* errorName[] =
    ""                 // 133:
 };
 
+
+int makeDirectory( const char* pathname )
+{
+   return mkdir( pathname, 0744 );
+}
+
+
+bool appendFilesInDirectory( char* path, char* wildcard, uint16_t* insertOffset, bool searchSubdirectories )
+{
+   struct stat status = { 0 };
+
+   DIR* directory = NULL;
+   struct dirent* directoryEntry = NULL;
+
+   char* workingPath;
+
+   char* source;
+   char* destination;
+   char* endOfString;
+   char* rhs;
+
+   struct InputFileType* file = NULL;
+
+   regex_t regex;
+
+   bool result = true;
+
+   workingPath = ( char* )malloc( _MAX_PATH + 1 );
+
+   if ( ( '.' == *path ) && ( '/' == path[ 1 ] ) )
+   {
+      strcpy( workingPath, path + 2 );
+   }
+   else
+   {
+      strcpy( workingPath, path );
+   }
+
+   size_t length = strlen( workingPath );
+
+   directory = opendir( workingPath );
+
+   if ( NULL != directory )
+   {
+      if ( NULL != wildcard )
+      {
+         strcpy( workingPath + length, wildcard );
+      }
+      else
+      {
+         strcpy( workingPath + length, "/" "*.*" );
+      }
+
+      endOfString = workingPath + length;
+
+      while ( '\0' != *endOfString )
+      {
+         ++endOfString;
+      }
+
+      // fix up '.../*.*' to mean '.../*' to match all files
+      if ( ( workingPath <= ( endOfString - 3 ) ) && ( 0 == strcmp( endOfString - 3, "*.*" ) ) )
+      {
+         endOfString -= 2;
+         *endOfString = '\0';
+      }
+
+      source = endOfString;
+
+      while ( workingPath < source )
+      {
+         --source;
+
+         switch ( *source )
+         {
+            case '*': // [^/]*
+            {
+               rhs = endOfString - 1;
+
+               endOfString += 4;
+               *endOfString = '\0';
+
+               destination = endOfString - 1;
+
+               while ( source < rhs )
+               {
+                  *destination = *rhs;
+
+                  --rhs;
+                  --destination;
+               }
+
+               memcpy( source, "[^/]*", 5 );
+            }
+               break;
+
+            case '.': // \\.
+            {
+               rhs = endOfString - 1;
+
+               endOfString += 1;
+               *endOfString = '\0';
+
+               destination = endOfString - 1;
+
+               while ( source < rhs )
+               {
+                  *destination = *rhs;
+
+                  --rhs;
+                  --destination;
+               }
+
+               *source = '\\';
+               *( source + 1 ) = '.';
+            }
+               break;
+
+            case '?': // .
+            {
+               *source = '.';
+            }
+               break;
+         }
+      }
+
+      if ( 0 == regcomp( &regex, workingPath, REG_ICASE | REG_NOSUB | REG_EXTENDED ) )
+      {
+         if ( ( '.' == *path ) && ( '/' == path[ 1 ] ) )
+         {
+            strcpy( workingPath, path + 2 );
+         }
+         else
+         {
+            strcpy( workingPath, path );
+         }
+
+         length = strlen( workingPath );
+
+         workingPath[ length + 1 ] = '\0';
+         workingPath[ length ] = '/';
+
+         while ( NULL != ( directoryEntry = readdir( directory ) ) )
+         {
+            if ( '\0' != directoryEntry->d_name[ 0 ] )
+            {
+               if ( '.' != directoryEntry->d_name[ 0 ] )
+               {
+                  strcpy( workingPath + length + 1, directoryEntry->d_name );
+
+                  // what's in the box?
+                  if ( ( 0 == stat( workingPath, &status ) ) && ( status.st_mode & S_IFREG ) )
+                  {
+                     if ( 0 == regexec( &regex, workingPath, ( size_t )0, NULL, 0 ) )
+                     {
+                        file = InputFile_initialize( workingPath, status.st_size, status.st_atimespec.tv_sec );
+                     }
+
+                     if ( NULL != file )
+                     {
+                        if ( NULL == insertOffset )
+                        {
+                           CZFList_insertAtTail( file );
+                        }
+                        else if ( CZFList_insertBefore( *insertOffset, file ) )
+                        {
+                           ++( *insertOffset );
+                        }
+
+                        file = NULL;
+                     }
+                  }
+               }
+            }
+         }
+
+         regfree( &regex );
+      }
+      else
+      {
+         fprintf( stderr, "ERROR: Path regex compile: %s", workingPath );
+
+         // regex compile error
+         result = false;
+      }
+
+      if ( true == searchSubdirectories )
+      {
+         rewinddir( directory );
+
+         while ( NULL != ( directoryEntry = readdir( directory ) ) )
+         {
+            if ( '\0' != directoryEntry->d_name[ 0 ] )
+            {
+               if ( '.' != directoryEntry->d_name[ 0 ] )
+               {
+                  strcpy( workingPath + length + 1, directoryEntry->d_name );
+
+                  // what's in the box???
+                  if ( 0 == stat( workingPath, &status ) )
+                  {
+                     if ( ( status.st_mode & S_IFDIR ) && ( status.st_mode & S_IEXEC ) )
+                     {
+                        if ( ( '.' != workingPath[ 0 ] ) || ( '/' != workingPath[ 1 ] ) )
+                        {
+                           result &= appendFilesInDirectory( workingPath, wildcard, insertOffset, searchSubdirectories );
+                        }
+                        else
+                        {
+                           result &= appendFilesInDirectory( workingPath + 2, wildcard, insertOffset, searchSubdirectories );
+                        }
+                     }
+                  }
+               }
+               else if ( '/' == directoryEntry->d_name[ 1 ] )
+               {
+                  fputs( directoryEntry->d_name, stdout );
+
+                  fputs( LNFEED, stdout );
+               }
+            }
+         }
+      }
+
+      closedir( directory );
+   }
+
+   free( workingPath );
+
+   return result;
+}
+
+bool appendInputFiles( char* inputSource, uint16_t* insertOffset, bool searchSubdirectories )
+{
+   struct stat status = { 0 };
+
+   char* backslash = NULL;
+   char* wildcard = NULL;
+
+   uint16_t wildcardCounter = 0;
+
+   size_t length = 0;
+
+   char* index = inputSource;
+
+   struct InputFileType* file;
+
+   bool result = true;
+
+   while ( *index )
+   {
+      if ( '/' == *index )
+      {
+         backslash = index;
+
+         wildcardCounter = 0;
+      }
+      else if ( ( '*' == *index ) || ( '?' == *index ) )
+      {
+         ++wildcardCounter;
+      }
+
+      ++index;
+   }
+
+   length = index - inputSource;
+
+   if ( 0 < wildcardCounter )
+   {
+      if ( NULL != backslash )
+      {
+         // ...\foo*.ext
+         wildcard = malloc( length + 1 );
+
+         strcpy( wildcard, backslash );
+
+         *backslash = '\0';
+      }
+      else // foo*.ext
+      {
+         wildcard = malloc( length + 2 );
+
+         wildcard[ 0 ] = '/';
+
+         strcpy( wildcard + 1, inputSource );
+
+         inputSource[ 0 ] = '.';
+         inputSource[ 1 ] = '\0';
+      }
+   }
+
+   if ( 0 == wildcardCounter )
+   {
+      if ( 0 == stat( inputSource, &status ) )
+      {
+         if ( status.st_mode & S_IFREG )
+         {
+            file = InputFile_initialize( inputSource, status.st_size, status.st_atimespec.tv_sec );
+
+            if ( NULL != file )
+            {
+               if ( NULL == insertOffset )
+               {
+                  CZFList_insertAtTail( file );
+               }
+               else if ( CZFList_insertBefore( *insertOffset, file ) )
+               {
+                  ++( *insertOffset );
+               }
+            }
+         }
+         else if ( ( status.st_mode & S_IFDIR ) && ( status.st_mode & S_IEXEC ) )
+         {
+            result &= appendFilesInDirectory( inputSource, wildcard, insertOffset, searchSubdirectories );
+         }
+      }
+      else
+      {
+         result = false;
+      }
+   }
+   else
+   {
+      result &= appendFilesInDirectory( inputSource, wildcard, insertOffset, searchSubdirectories );
+   }
+
+   if ( NULL != wildcard )
+   {
+      free( wildcard );
+
+      wildcard = NULL;
+   }
+
+   return result;
+}
+
+
 void errorExit( const char* message, unsigned line, const char* filename )
 {
    int errorID = errno;
@@ -729,6 +993,104 @@ int kbhit( void )
 }
 
 
+uint32_t getVersionID( const char* filename )
+{
+   uint32_t versionID = 0;
+
+   struct stat status = { 0 };
+
+   if ( ( 0 == stat( filename, &status ) ) && ( status.st_mode & S_IFREG ) )
+   {
+      versionID = status.st_mtimespec.tv_nsec;
+
+      versionID /= status.st_size;
+   }
+
+   return versionID;
+}
+
+
+
+char prompt( const char* promptStr, const char option[], unsigned char optionCount, const char* optionDefault )
+{
+   char result = '\0';
+
+   char selection;
+   char extended = ' ';
+
+   char choice;
+
+   unsigned char i;
+
+   // display choices
+   fputs( promptStr, stdout );
+
+   fflush( stdout );
+
+   int status;
+
+   while ( ( -1 == ( status = ttySetRaw( STDIN_FILENO ) ) ) && ( EINTR == errno ) )
+      continue;
+
+   // absorb pending key press before prompt
+   while ( kbhit() )
+   {
+      selection = getchar();
+   }
+
+   do
+   {
+      selection = getchar();
+
+      choice = ( 0 < selection ) ? selection : extended;
+
+      // keypress
+      for ( i = 0; i < optionCount; i++ )
+      {
+         if ( option[ i ] == choice )
+         {
+            result = choice;
+
+            break;
+         }
+      }
+
+      // was the any key pressed?
+      if ( ( '\0' == result ) && ( NULL != optionDefault ) )
+      {
+         result = *optionDefault;
+      }
+
+      // should a default selection be displayed? => y
+      if ( ( 32 < result ) && ( 127 > result ) )
+      {
+         fputc( result, stdout );
+      }
+
+      fputs( LNFEED, stdout );
+
+      if ( '\0' == result )
+      {
+         // display choices
+         fputs( promptStr, stdout );
+
+         fflush( stdout );
+      }
+   }
+   while ( '\0' == result );
+
+   if ( NULL != sysTermSet )
+   {
+      if ( -1 == tcsetattr( STDIN_FILENO, TCSAFLUSH, sysTermSet ) )
+      {
+         errorExit( "tcsetattr", __LINE__, __FILE__ );
+      }
+   }
+
+   return result;
+}
+
+
 void platformInitialize( void )
 {
    struct sigaction appSignal;
@@ -838,6 +1200,3 @@ void platformRelinquish( void )
       }
    }
 }
-
-
-#endif

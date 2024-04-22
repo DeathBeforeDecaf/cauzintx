@@ -10,7 +10,7 @@
 #include <time.h>    // time_t
 
 #include "stdtypes.h" // bool, true, false
-#include "txdirect.h"  // InputFileType
+#include "txstrip.h"  // struct InputFileType
 
 //  CZFListNode
 //  +----------------+
@@ -89,4 +89,3 @@ void CZFList_sort( bool ( *CZFListDataType_lessThan )( CZFListDataType lhs, CZFL
 
 
 #endif // FILELIST_H
-

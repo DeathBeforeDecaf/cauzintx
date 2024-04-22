@@ -1,10 +1,9 @@
 #ifndef LAYOUT_H
 #define LAYOUT_H
 
-#include <stddef.h>  // size_t
-#include <stdio.h>   // printf()
+#include <stdlib.h>  // NULL
+
 #include "stdtypes.h"
-#include "txdirect.h"
 
 enum LinearUnits
 {
@@ -79,6 +78,16 @@ struct MediaLayoutType
    struct PrintedPageType print;
 };
 
+
+extern const char* linearUnitsName[];
+extern const uint16_t linearUnitsCount;
+
+extern const char* pageName[];
+extern const uint16_t pageCount;
+
+extern const struct PublishedPageType publishStandard[];
+extern const struct PrintedPageType printStandard[];
+
 /// Architectural Sizes
 // Size      Width x Height (mm)    Width x Height (in)    Aspect Ratio
 // Arch A      229 x 305 mm           9.0 x 12.0 in            4:3
@@ -101,8 +110,5 @@ struct MediaLayoutType
 //    http://www.printernational.org/iso-paper-sizes.php
 //    http://www.printernational.org/english-paper-sizes.php
 
-struct StripLayoutType;
-
-void calculateStripHeight( struct StripLayoutType* dfltStrip, struct MediaLayoutType media );
 
 #endif

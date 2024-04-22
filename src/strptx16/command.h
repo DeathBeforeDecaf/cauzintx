@@ -1,7 +1,7 @@
-#include "stdtypes.h"
 #include "editor.h"
 #include "parseopt.h"
-#include "platform.h"
+#include "stdtypes.h"
+// #include "platform.h"
 
 #ifndef COMMAND_H
 #define COMMAND_H
@@ -22,5 +22,19 @@ struct CommandType
    enum CMDLineResultType    result;
    bool                   ( *cmdHandler )( bool isCmdLine, char* inputStr );
 };
+
+/*
+   {  // j5 baz info - set adjunct information for #5 file
+      50000,
+      "j#",
+      "adj#",
+      cmdln_completed,
+      setStripAdjunct
+   },
+
+*/
+
+extern struct CommandType command[];
+extern const uint16_t commandCount;
 
 #endif

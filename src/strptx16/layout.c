@@ -1,8 +1,4 @@
 #include "layout.h"
-#include "settings.h"
-
-extern struct SystemSettings settings;
-
 
 const char* linearUnitsName[] =
 {
@@ -236,41 +232,3 @@ const struct PrintedPageType printStandard[] =
       }
    },
 };
-
-
-void calculateStripHeight( struct StripLayoutType* dfltStrip, struct MediaLayoutType media )
-{
-   float waterMarkedStripHeight;
-
-   // height = publish - margin
-   float stripHeight =
-      media.publish.height - media.publish.margin.top - media.publish.margin.bottom;
-
-   // height -= alignment_marks (top and bottom adjustments)
-   stripHeight = stripHeight - dfltStrip->align.top - dfltStrip->align.bottom;
-
-   // height -= header_height ( ~1/4 inch )
-   stripHeight =
-      stripHeight - dfltStrip->header.top_m - dfltStrip->header.hsync_h - dfltStrip->header.vsync_h;
-
-   // height - footer_height ( watermark? )
-   stripHeight =
-      stripHeight - dfltStrip->footer.top_m;
-
-   waterMarkedStripHeight = stripHeight - dfltStrip->footer.wmark_h - dfltStrip->footer.bottom_m;
-
-   // truncate strip to hard limit
-   if ( stripHeight > settings.pageLayout.MAX_APERTURE_SIZE_INCHES )
-   {
-      stripHeight = settings.pageLayout.MAX_APERTURE_SIZE_INCHES;
-   }
-
-   if ( waterMarkedStripHeight > settings.pageLayout.MAX_APERTURE_SIZE_INCHES )
-   {
-      waterMarkedStripHeight = settings.pageLayout.MAX_APERTURE_SIZE_INCHES;
-   }
-
-   dfltStrip->apparentHeight = stripHeight;
-
-   dfltStrip->apparentWatermarkedHeight = waterMarkedStripHeight;
-}

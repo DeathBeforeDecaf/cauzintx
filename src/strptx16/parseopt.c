@@ -1,28 +1,4 @@
-#include <stdlib.h>  // atol()
-#include <string.h>  // strlen()
-#ifndef _DOS
-#include <unistd.h> // getcwd()
-#endif
-
-#include "command.h"
-#include "editor.h"
 #include "parseopt.h"
-#include "platform.h"
-#include "settings.h"
-
-extern struct SystemSettings settings;
-
-extern char* pageName[];
-extern uint16_t pageCount;
-
-extern struct PublishedPageType publishStandard[];
-extern struct PrintedPageType printStandard[];
-
-extern struct CommandType command[];
-extern const uint16_t commandCount;
-
-extern char    hzwspace[];
-extern uint8_t hzwspace_count;
 
 void printUsage()
 {
@@ -40,9 +16,9 @@ void printUsage()
    printf( "    /recur=%-5s         : set recursive directory search wildcard expansion" LNFEED,
            ( 0 == settings.searchRecursively ) ? "false" : "true" );
 
-   printf( "    /maxb=%lu         : set maximum byte limit for an encoding sequence" LNFEED, settings.sequence.MAX_STRIP_SEQUENCE_BYTES );
+   printf( "    /maxb=%" FSTR_UINT32_T "         : set maximum byte limit for an encoding sequence" LNFEED, settings.sequence.limitMaxSequenceBytes );
 
-   printf( "    /asiz=%1.2f           : set aperture size limit of optical reader in inches" LNFEED, settings.pageLayout.MAX_APERTURE_SIZE_INCHES );
+   printf( "    /asiz=%1.2f           : set aperture size limit of optical reader in inches" LNFEED, settings.pageLayout.limitApertureSizeInches );
 
    printf( "    /y                   : non-interactive generation of strip sequence" LNFEED );
 
@@ -53,15 +29,15 @@ void printUsage()
 
    printf( "    /hsync=0x%02X          : set default hSync (nibbles/scan line) of all strips" LNFEED, settings.sequence.encoding[ 0 ].hSync );
 
-   printf( "    /hsync#=0x%02X         : set hSync (nibbles/scan line) of strip# in [1,%u]" LNFEED, settings.sequence.encoding[ 0 ].hSync, SEQUENCE_LIMIT );
+   printf( "    /hsync#=0x%02X         : set hSync (nibbles/scan line) of strip# in [1,%d]" LNFEED, settings.sequence.encoding[ 0 ].hSync, SEQUENCE_LIMIT );
 
    printf( "    /vsync=0x%02X          : set default vSync (uSteps/scan line) of all strips" LNFEED, settings.sequence.encoding[ 0 ].vSync );
 
-   printf( "    /vsync#=0x%02X         : set vSync (uSteps/scan line) of strip# in [1,%u]" LNFEED, settings.sequence.encoding[ 0 ].vSync, SEQUENCE_LIMIT );
+   printf( "    /vsync#=0x%02X         : set vSync (uSteps/scan line) of strip# in [1,%d]" LNFEED, settings.sequence.encoding[ 0 ].vSync, SEQUENCE_LIMIT );
 
    printf( "    /sync=0x%02X,0x%02X      : set default Sync values of all rendered strips" LNFEED, settings.sequence.encoding[ 0 ].hSync, settings.sequence.encoding[ 0 ].vSync );
 
-   printf( "    /sync#=0x%02X,0x%02X     : set hSync and vSync values of strip# in [1,%u]" LNFEED, settings.sequence.encoding[ 0 ].hSync, settings.sequence.encoding[ 0 ].vSync, SEQUENCE_LIMIT );
+   printf( "    /sync#=0x%02X,0x%02X     : set hSync and vSync values of strip# in [1,%d]" LNFEED, settings.sequence.encoding[ 0 ].hSync, settings.sequence.encoding[ 0 ].vSync, SEQUENCE_LIMIT );
 
    printf( "    /crc=%-5s           : generate CRC on each strip by default" LNFEED,
            ( 0 == ( strip_crc & settings.sequence.encoding[ 0 ].override ) ) ? "false" : "true" );
@@ -101,7 +77,7 @@ void printUsage()
    printf( "    /prt.feed=%s      : set printer feed format to { sheet, continuous }" LNFEED,
            ( sheet == settings.media.print.feed ) ? "sheet" : "continuous" );
 
-   printf( "    /prt.dots=%u,%u    : set printer horizontal/vertical resolution(dots/area)" LNFEED,
+   printf( "    /prt.dots=%" FSTR_UINT16_T ",%" FSTR_UINT16_T "    : set printer horizontal/vertical resolution(dots/area)" LNFEED,
            settings.media.print.dots.horizontal, settings.media.print.dots.vertical );
 
    if ( direct_render != settings.outputMode )
@@ -134,7 +110,7 @@ bool setStripID( bool isCmdLine, char* inputStr )
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    length = strlen( index );
 
@@ -177,11 +153,11 @@ bool setStripID( bool isCmdLine, char* inputStr )
 }
 
 
-bool setOutputFilename( bool isCmdLine, char* inputStr )
+bool setOutputFilename( bool isCmdLine, const char* inputStr )
 {
    size_t length;
 
-   char* index = inputStr;
+   char* index = ( char* )inputStr;
 
    if ( 0 == strnicmp( index, "out", 3 ) )
    {
@@ -197,7 +173,7 @@ bool setOutputFilename( bool isCmdLine, char* inputStr )
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    length = strlen( index );
 
@@ -228,6 +204,8 @@ bool setSequenceText( bool isCmdLine, char* inputStr )
 {
    size_t length;
 
+   char* linesOut;
+
    char* index = inputStr;
 
    if ( 0 == strnicmp( index, "text", 4 ) )
@@ -244,7 +222,7 @@ bool setSequenceText( bool isCmdLine, char* inputStr )
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    length = strlen( index );
 
@@ -253,9 +231,16 @@ bool setSequenceText( bool isCmdLine, char* inputStr )
       free( settings.sequence.verboseDescription );
    }
 
-   // TODO: softbreak (force \n) at 110 chars, truncate after 6 lines
+   // force newline at 110 chars, truncate after 6 lines
 
-   settings.sequence.verboseDescription = ( 0 < length ) ? strdup( index ) : NULL;
+   if ( ( 0 < length ) && softBreak( index, 110, 5, &linesOut ) )
+   {
+      settings.sequence.verboseDescription = linesOut;
+   }
+   else
+   {
+      settings.sequence.verboseDescription = NULL;
+   }
 
    if ( 0 != length )
    {
@@ -305,14 +290,14 @@ bool setStripAdjunct( bool isCmdLine, char* inputStr )
    {
       if (  ( 0 < offset ) && ( offset <= CZFList_itemCount() ) )
       {
-         index = ltrim( nextSegment, hzwspace, hzwspace_count );
+         index = ltrim( nextSegment, hzWSpace, hzWSpaceCount );
 
          if ( isCmdLine && ( '=' == *index ) )
          {
             ++index;
          }
 
-         index = ltrim( index, hzwspace, hzwspace_count );
+         index = ltrim( index, hzWSpace, hzWSpaceCount );
 
          length = strlen( index );
 
@@ -328,20 +313,20 @@ bool setStripAdjunct( bool isCmdLine, char* inputStr )
                   }
 
                   item->entry.adjunct = ( uint8_t* )strdup( index );
-                  item->entry.adjunct_size = length;
+                  item->entry.adjunct_size = ( uint8_t )length;
 
                   result = true;
 
                   if ( false == isCmdLine )
                   {
-                     printf( "   updated adjunct information for file #%d", offset );
+                     printf( "   updated adjunct information for file #%" FSTR_UINT16_T , offset );
                   }
                }
                else  // length >= 256
                {
                   if ( false == isCmdLine )
                   {
-                     fprintf( stderr, LNFEED "   ERROR: Maximum adjunct length exceeded for file #%d (255 Bytes max)", offset );
+                     fprintf( stderr, LNFEED "   ERROR: Maximum adjunct length exceeded for file #%" FSTR_UINT16_T " (255 Bytes max)", offset );
                   }
                }
             }
@@ -355,7 +340,7 @@ bool setStripAdjunct( bool isCmdLine, char* inputStr )
 
                   if ( false == isCmdLine )
                   {
-                     printf( "   cleared adjunct information for file #%d", offset );
+                     printf( "   cleared adjunct information for file #%" FSTR_UINT16_T, offset );
                   }
                }
 
@@ -364,12 +349,12 @@ bool setStripAdjunct( bool isCmdLine, char* inputStr )
          }
          else if ( false == isCmdLine ) // problem retrieving file# offset
          {
-            printf( "   ERROR: Problem retrieving file #%d, update adjunct failed", offset );
+            printf( "   ERROR: Problem retrieving file #%" FSTR_UINT16_T ", update adjunct failed", offset );
          }
       }
       else if ( false == isCmdLine ) // offset out of range
       {
-         printf( "   sorry, adjunct offset out of range for file #%d", offset );
+         printf( "   sorry, adjunct offset out of range for file #%" FSTR_UINT16_T , offset );
       }
    }
    else if ( false == isCmdLine ) // offset NaN
@@ -439,7 +424,7 @@ bool setEncodingSequenceByteLimit( bool isCmdLine, char* inputStr )
 
    bool result = false;
 
-   uint32_t byteLimit = 5UL * 1024UL * 127UL;
+   uint32_t byteLimit = DEFAULT_SEQUENCE_LIMIT;
 
    if ( 0 == strnicmp( index, "maxb", 4 ) )
    {
@@ -455,7 +440,7 @@ bool setEncodingSequenceByteLimit( bool isCmdLine, char* inputStr )
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    length = strlen( index );
 
@@ -465,43 +450,43 @@ bool setEncodingSequenceByteLimit( bool isCmdLine, char* inputStr )
 
       if ( mark != index )
       {
-         if ( byteLimit >= ( 16UL * 1024UL ) )
+         if ( byteLimit >= MIN_SEQUENCE_SIZE )
          {
-            if ( byteLimit < 10485761UL ) // over 10MB hard limit?
+            if ( byteLimit < MAX_SEQUENCE_SIZE ) // over 10MB hard limit?
             {
-               settings.sequence.MAX_STRIP_SEQUENCE_BYTES = byteLimit;
+               settings.sequence.limitMaxSequenceBytes = byteLimit;
 
                result = true;
 
                if ( false == isCmdLine )
                {
-                  printf( "   updated encoding sequence byte limit to %lu bytes.", byteLimit );
+                  printf( "   updated encoding sequence byte limit to %" FSTR_UINT32_T " bytes.", byteLimit );
                }
             }
             else if ( false == isCmdLine )
             {
-               printf( "   sorry, encoding sequence byte limit must be less than %lu bytes", byteLimit );
+               printf( "   encoding sequence byte limit must be less than %" FSTR_UINT32_T " bytes: %" FSTR_UINT32_T " requested", MAX_SEQUENCE_SIZE, byteLimit );
             }
          }
          else if ( false == isCmdLine )
          {
-            printf( "   sorry, encoding sequence byte limit must be more than %lu bytes", byteLimit );
+            printf( "   encoding sequence byte limit must be more than %" FSTR_UINT32_T " bytes: %" FSTR_UINT32_T " requested", MIN_SEQUENCE_SIZE, byteLimit );
          }
       }
       else if ( false == isCmdLine )
       {
-         printf( "   sorry, encoding sequence limited to between 16KB and 10MB", byteLimit );
+         printf( "   encoding sequence limited to between 16KB and 10MB: %" FSTR_UINT32_T " bytes", byteLimit );
       }
    }
    else
    {
-      settings.sequence.MAX_STRIP_SEQUENCE_BYTES = byteLimit;
+      settings.sequence.limitMaxSequenceBytes = byteLimit;
 
       result = true;
 
       if ( false == isCmdLine )
       {
-         printf( "   reset encoding sequence byte limit to default value %lu bytes", byteLimit );
+         printf( "   reset encoding sequence byte limit to default value %" FSTR_UINT32_T " bytes", byteLimit );
       }
    }
 
@@ -535,7 +520,7 @@ bool setOpticalReaderApertureSize( bool isCmdLine, char* inputStr )
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    length = strlen( index );
 
@@ -545,11 +530,11 @@ bool setOpticalReaderApertureSize( bool isCmdLine, char* inputStr )
 
       if ( mark != index )
       {
-         if ( apertureSize >= 2.99f )
+         if ( apertureSize >= READER_MIN_APERTURE_SIZE_INCHES )
          {
-            if ( apertureSize <= 10.01f )
+            if ( apertureSize <= READER_MAX_APERTURE_SIZE_INCHES )
             {
-               settings.pageLayout.MAX_APERTURE_SIZE_INCHES = apertureSize;
+               settings.pageLayout.limitApertureSizeInches = apertureSize;
 
                result = true;
 
@@ -560,22 +545,23 @@ bool setOpticalReaderApertureSize( bool isCmdLine, char* inputStr )
             }
             else if ( false == isCmdLine )
             {
-               printf( "   sorry, aperture size must be less than %1.2f inches", apertureSize );
+               printf( "   aperture size must be less than %1.2f inches", READER_MAX_APERTURE_SIZE_INCHES );
             }
          }
          else if ( false == isCmdLine )
          {
-            printf( "   sorry, aperture size must be greater than %1.2f inches", apertureSize );
+            printf( "   aperture size must be greater than %1.2f inches", READER_MIN_APERTURE_SIZE_INCHES );
          }
       }
       else if ( false == isCmdLine )
       {
-         printf( "   sorry, expected aperture size between 3 to 10 inches", apertureSize );
+         printf( "   expected aperture size between %1.2f to %1.2f inches: %1.2f inches",
+                 READER_MIN_APERTURE_SIZE_INCHES, READER_MAX_APERTURE_SIZE_INCHES, apertureSize );
       }
    }
    else
    {
-      settings.pageLayout.MAX_APERTURE_SIZE_INCHES = apertureSize;
+      settings.pageLayout.limitApertureSizeInches = apertureSize;
 
       if ( false == isCmdLine )
       {
@@ -658,14 +644,14 @@ bool setHSyncValue( bool isCmdLine, char* inputStr )
       mark = index;
    }
 
-   index = ltrim( mark, hzwspace, hzwspace_count );
+   index = ltrim( mark, hzWSpace, hzWSpaceCount );
 
    if ( isCmdLine && ( '=' == *index ) )
    {
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    if ( offset <= SEQUENCE_LIMIT )
    {
@@ -688,23 +674,23 @@ bool setHSyncValue( bool isCmdLine, char* inputStr )
                }
                else
                {
-                  printf( "   updated hSync for strip #%u to 0x%02X nibbles per scanline", offset, hSync );
+                  printf( "   updated hSync for strip #%" FSTR_UINT16_T " to 0x%02X nibbles per scanline", offset, hSync );
                }
             }
          }
          else if ( false == isCmdLine )
          {
-            printf( "   sorry, hSync must be a hex value between 0x04 and 0x0C (12)" );
+            printf( "   hSync must be a hex value between 0x04 and 0x0C (12)" );
          }
       }
       else if ( false == isCmdLine ) // not a (base16) number
       {
-         printf( "   sorry, hSync must be a hex value between 0x04 and 0x0C (12)");
+         printf( "   hSync must be a hex value between 0x04 and 0x0C (12)");
       }
    }
    else if ( false == isCmdLine ) // offset range out of bounds
    {
-      printf( "   sorry, strip #%u is beyond the limit of a valid sequence (%u)", offset, SEQUENCE_LIMIT );
+      printf( "   strip #%" FSTR_UINT16_T " is beyond the limit of a valid sequence (%d)", offset, SEQUENCE_LIMIT );
    }
 
    return result;
@@ -740,14 +726,14 @@ bool setVSyncValue( bool isCmdLine, char* inputStr )
       mark = index;
    }
 
-   index = ltrim( mark, hzwspace, hzwspace_count );
+   index = ltrim( mark, hzWSpace, hzWSpaceCount );
 
    if ( isCmdLine && ( '=' == *index ) )
    {
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    if ( offset <= SEQUENCE_LIMIT )
    {
@@ -770,23 +756,23 @@ bool setVSyncValue( bool isCmdLine, char* inputStr )
                }
                else
                {
-                  printf( "   updated vSync for strip #%u to 0x%02X microsteps per scanline", offset, vSync );
+                  printf( "   updated vSync for strip #%" FSTR_UINT16_T " to 0x%02X microsteps per scanline", offset, vSync );
                }
             }
          }
          else if ( false == isCmdLine ) // vsync value out of range
          {
-            printf( "   sorry, vSync must be a hex value between 0x20 (32) and 0xFF (255)" );
+            printf( "   vSync must be a hex value between 0x20 (32) and 0xFF (255)" );
          }
       }
       else if ( false == isCmdLine ) // not a (base16) number
       {
-         printf( "   sorry, vSync must be a hex value between 0x20 (32) and 0xFF (255)" );
+         printf( "   vSync must be a hex value between 0x20 (32) and 0xFF (255)" );
       }
    }
    else if ( false == isCmdLine ) // offset range out of bounds
    {
-      printf( "   sorry, strip #%u is beyond the limit of a valid sequence (%u)", offset, SEQUENCE_LIMIT );
+      printf( "   strip #%" FSTR_UINT16_T " is beyond the limit of a valid sequence (%d)", offset, SEQUENCE_LIMIT );
    }
 
    return result;
@@ -824,14 +810,14 @@ bool setSyncValue( bool isCmdLine, char* inputStr )
       mark = index;
    }
 
-   index = ltrim( mark, hzwspace, hzwspace_count );
+   index = ltrim( mark, hzWSpace, hzWSpaceCount );
 
    if ( isCmdLine && ( '=' == *index ) )
    {
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    if ( offset <= SEQUENCE_LIMIT )
    {
@@ -845,23 +831,23 @@ bool setSyncValue( bool isCmdLine, char* inputStr )
          }
          else if ( false == isCmdLine )
          {
-            printf( "   sorry, hSync must be a hex value between 0x04 and 0x0C (12)" );
+            printf( "   hSync must be a hex value between 0x04 and 0x0C (12)" );
          }
       }
       else if ( false == isCmdLine ) // hsync not a (base16) number
       {
-         printf( "   sorry, hSync must be a hex value between 0x04 and 0x0C (12)" );
+         printf( "   hSync must be a hex value between 0x04 and 0x0C (12)" );
       }
 
       if ( true == result )
       {
-         index = ltrim( mark, hzwspace, hzwspace_count );
+         index = ltrim( mark, hzWSpace, hzWSpaceCount );
 
          if ( ',' == *index )
          {
             ++index;
 
-            index = ltrim( index, hzwspace, hzwspace_count );
+            index = ltrim( index, hzWSpace, hzWSpaceCount );
 
             vSync = ( uint16_t )strtoul( index, &mark, 16 );
 
@@ -893,7 +879,7 @@ bool setSyncValue( bool isCmdLine, char* inputStr )
 
                   if ( false == isCmdLine )
                   {
-                     printf( "   sorry, vSync must be a hex value between 0x20 (32) and 0xFF (255)" );
+                     printf( "   vSync must be a hex value between 0x20 (32) and 0xFF (255)" );
                   }
                }
             }
@@ -903,7 +889,7 @@ bool setSyncValue( bool isCmdLine, char* inputStr )
 
                if ( false == isCmdLine )
                {
-                  printf( "   sorry, vSync must be a hex value between 0x20 (32) and 0xFF (255)" );
+                  printf( "   vSync must be a hex value between 0x20 (32) and 0xFF (255)" );
                }
             }
          }
@@ -913,14 +899,14 @@ bool setSyncValue( bool isCmdLine, char* inputStr )
 
             if ( false == isCmdLine )
             {
-               printf( "   sorry, vSync missing from hex pair hSync,vSync" );
+               printf( "   vSync missing from hex pair hSync,vSync" );
             }
          }
       }
    }
    else if ( false == isCmdLine ) // offset range out of bounds
    {
-      printf( "   sorry, strip #%u is beyond the limit of a valid sequence (%u)", offset, SEQUENCE_LIMIT );
+      printf( "   strip #%" FSTR_UINT16_T " is beyond the limit of a valid sequence (%d)", offset, SEQUENCE_LIMIT );
    }
 
    return result;
@@ -955,14 +941,14 @@ bool updateCRCGeneration( bool isCmdLine, char* inputStr )
       mark = index;
    }
 
-   index = ltrim( mark, hzwspace, hzwspace_count );
+   index = ltrim( mark, hzWSpace, hzWSpaceCount );
 
    if ( isCmdLine && ( '=' == *index ) )
    {
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    if ( *index )
    {
@@ -985,7 +971,8 @@ bool updateCRCGeneration( bool isCmdLine, char* inputStr )
          }
          else
          {
-            printf( "   updated generate CRC for strip #%u to %s", offset, ( generateCRC ? "true" : "false" ) );
+            printf( "   updated generate CRC for strip #%" FSTR_UINT16_T " to %s",
+                    offset, ( generateCRC ? "true" : "false" ) );
          }
       }
    }
@@ -997,7 +984,7 @@ bool updateCRCGeneration( bool isCmdLine, char* inputStr )
       }
       else
       {
-         printf( "   reset generate CRC for strip #%u to false (default)", offset );
+         printf( "   reset generate CRC for strip #%" FSTR_UINT16_T " to false (default)", offset );
       }
    }
 
@@ -1027,7 +1014,7 @@ bool updateRenderMode( bool isCmdLine, char* inputStr )
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    length = strlen( index );
 
@@ -1077,7 +1064,7 @@ bool updateRenderMode( bool isCmdLine, char* inputStr )
          }
          else if ( false == isCmdLine ) // nonconforming value ignored
          {
-            printf( "   sorry, a render format of '%s' was not recognized", index );
+            printf( "   a render format of '%s' was not recognized", index );
          }
       }
       else if ( ( 5 == length ) && ( 0 == stricmp( index, "photo" ) ) )
@@ -1102,7 +1089,7 @@ bool updateRenderMode( bool isCmdLine, char* inputStr )
       }
       else if ( false == isCmdLine ) // nonconforming value ignored
       {
-         printf( "   sorry, a render format of '%s' was not recognized", index );
+         printf( "   a render format of '%s' was not recognized", index );
       }
    }
    else
@@ -1115,7 +1102,7 @@ bool updateRenderMode( bool isCmdLine, char* inputStr )
 
       if ( false == isCmdLine )
       {
-         printf( "   reset render mode format to direct (default)", index );
+         printf("   a render format of '%s' was not recognized, reset render mode format to direct (default)", index );
       }
    }
 
@@ -1148,7 +1135,7 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
       index += 1;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    if ( *index )
    {
@@ -1186,7 +1173,7 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
          ++index;
       }
 
-      index = ltrim( index, hzwspace, hzwspace_count );
+      index = ltrim( index, hzWSpace, hzWSpaceCount );
 
       length = strlen( index );
 
@@ -1222,7 +1209,7 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
 
                if ( ( false == result ) && ( false == isCmdLine ) )
                {
-                  printf( "   sorry, published media setting of '%s' not valid", index );
+                  printf( "   published media setting of '%s' not valid", index );
                }
             }
                break;
@@ -1234,9 +1221,9 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
 
                if ( index != mark )
                {
-                  if ( fValue >= 2.0f )
+                  if ( fValue >= PUBLISHED_HEIGHT_MIN_SIZE_INCHES )
                   {
-                     if ( fValue <= 120.0f )
+                     if ( fValue <= PUBLISHED_HEIGHT_MAX_SIZE_INCHES )
                      {
                         settings.media.publish.height = fValue;
 
@@ -1244,22 +1231,25 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
 
                         if ( false == isCmdLine )
                         {
-                           printf( "   updated published media height to %1.2f", fValue );
+                           printf( "   updated published media height to %1.2f inches", fValue );
                         }
                      }
                      else if ( false == isCmdLine ) // exceeds maximum 120.0f inches
                      {
-                        printf( "   sorry, published media height input exceeds 120.0" );
+                        printf( "   published media height input exceeds %1.2f inches",
+                                PUBLISHED_HEIGHT_MAX_SIZE_INCHES );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 2.0f inches
-                  {                     
-                     printf( "   sorry, published media height input less than minimum 2.0" );
+                  {
+                     printf( "   published media height input less than minimum %1.2f inches",
+                             PUBLISHED_HEIGHT_MIN_SIZE_INCHES );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, published media height must be between 2.0 and 120.0" );
+                  printf( "   published media height must be between %1.2f and %1.2f inches",
+                          PUBLISHED_HEIGHT_MIN_SIZE_INCHES, PUBLISHED_HEIGHT_MAX_SIZE_INCHES );
                }
             }
                break;
@@ -1271,9 +1261,9 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
 
                if ( index != mark )
                {
-                  if ( fValue >= 2.0f )
+                  if ( fValue >= PUBLISHED_WIDTH_MIN_SIZE_INCHES )
                   {
-                     if ( fValue <= 120.0f )
+                     if ( fValue <= PUBLISHED_WIDTH_MAX_SIZE_INCHES )
                      {
                         settings.media.publish.width = fValue;
 
@@ -1281,22 +1271,23 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
 
                         if ( false == isCmdLine )
                         {
-                           printf( "   updated published media width to %1.2f", fValue );
+                           printf( "   updated published media width to %1.2f inches", fValue );
                         }
                      }
                      else if ( false == isCmdLine ) // exceeds maximum 120.0f inches
                      {
-                        printf( "   sorry, published media width input exceeds 120.0" );
+                        printf( "   published media width input exceeds %1.2f inches", PUBLISHED_WIDTH_MAX_SIZE_INCHES );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 2.0f inches
-                  {                     
-                     printf( "   sorry, published media width input less than minimum 2.0" );
+                  {
+                     printf( "   published media width input less than minimum %1.2f inches", PUBLISHED_WIDTH_MIN_SIZE_INCHES );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, published media width must be between 2.0 and 120.0" );
+                  printf( "   published media width must be between %1.2f and %1.2f inches",
+                          PUBLISHED_WIDTH_MIN_SIZE_INCHES, PUBLISHED_WIDTH_MAX_SIZE_INCHES );
                }
             }
                break;
@@ -1323,17 +1314,17 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
                      }
                      else if ( false == isCmdLine ) // exceeds maximum height inches
                      {
-                        printf( "   sorry, top margin value exceeds maximum for published media" );
+                        printf( "   top margin value exceeds maximum for published media" );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 0.0f inches
                   {
-                     printf( "   sorry, top margin must be greater than or equal to 0.0" );
+                     printf( "   top margin must be greater than or equal to 0.0" );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, top margin input value not a valid number" );
+                  printf( "   top margin input value not a valid number" );
                }
             }
                break;
@@ -1360,17 +1351,17 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
                      }
                      else if ( false == isCmdLine ) // exceeds maximum height inches
                      {
-                        printf( "   sorry, bottom margin value exceeds maximum for published media" );
+                        printf( "   bottom margin value exceeds maximum for published media" );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 0.0f inches
                   {
-                     printf( "   sorry, bottom margin must be greater than or equal to 0.0" );
+                     printf( "   bottom margin must be greater than or equal to 0.0" );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, bottom margin input value not a valid number" );
+                  printf( "   bottom margin input value not a valid number" );
                }
             }
 
@@ -1398,17 +1389,17 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
                      }
                      else if ( false == isCmdLine ) // exceeds maximum width inches
                      {
-                        printf( "   sorry, left margin value exceeds maximum for published media" );
+                        printf( "   left margin value exceeds maximum for published media" );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 0.0f inches
                   {
-                     printf( "   sorry, left margin must be greater than or equal to 0.0" );
+                     printf( "   left margin must be greater than or equal to 0.0" );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, left margin input value not a valid number" );
+                  printf( "   left margin input value not a valid number" );
                }
             }
 
@@ -1436,17 +1427,17 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
                      }
                      else if ( false == isCmdLine ) // exceeds maximum width inches
                      {
-                        printf( "   sorry, right margin value exceeds maximum for published media" );
+                        printf( "   right margin value exceeds maximum for published media" );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 0.0f inches
                   {
-                     printf( "   sorry, right margin must be greater than or equal to 0.0" );
+                     printf( "   right margin must be greater than or equal to 0.0" );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, right margin input value not a valid number" );
+                  printf( "   right margin input value not a valid number" );
                }
             }
                break;
@@ -1471,7 +1462,7 @@ bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
 
                if ( false == isCmdLine )
                {
-                  printf( "   reset published media settings to %s (default)", pageName[ 0 ]);
+                  printf( "   reset published media settings to %s (default)", pageName[ 0 ] );
                }
             }
                break;
@@ -1563,7 +1554,7 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
       index += 1;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    if ( *index )
    {
@@ -1605,7 +1596,7 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
          ++index;
       }
 
-      index = ltrim( index, hzwspace, hzwspace_count );
+      index = ltrim( index, hzWSpace, hzWSpaceCount );
 
       length = strlen( index );
 
@@ -1639,7 +1630,7 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                if ( ( false == result ) && ( false == isCmdLine ) )
                {
-                  printf( "   sorry, print media setting of '%s' not valid", index );
+                  printf( "   print media setting of '%s' not valid", index );
                }
             }
                break;
@@ -1651,9 +1642,9 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                if ( index != mark )
                {
-                  if ( fValue >= 2.0f )
+                  if ( fValue >= PRINT_HEIGHT_MIN_SIZE_INCHES )
                   {
-                     if ( fValue <= 120.0f )
+                     if ( fValue <= PRINT_HEIGHT_MAX_SIZE_INCHES )
                      {
                         settings.media.print.height = fValue;
 
@@ -1661,22 +1652,25 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                         if ( false == isCmdLine )
                         {
-                           printf( "   updated print media height to %1.2f", fValue );
+                           printf( "   updated print media height to %1.2f inches", fValue );
                         }
                      }
                      else if ( false == isCmdLine ) // exceeds maximum 120.0f inches
                      {
-                        printf( "   sorry, print media height input exceeds 120.0" );
+                        printf( "   print media height input exceeds %1.2f inches",
+                                PRINT_HEIGHT_MAX_SIZE_INCHES );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 2.0f inches
-                  {                     
-                     printf( "   sorry, print media height input less than minimum 2.0" );
+                  {
+                     printf( "   print media height input less than minimum %1.2f inches",
+                             PRINT_HEIGHT_MIN_SIZE_INCHES );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, print media height must be between 2.0 and 120.0" );
+                  printf( "   print media height must be between %1.2f and %1.2f inches",
+                          PRINT_HEIGHT_MIN_SIZE_INCHES, PRINT_HEIGHT_MAX_SIZE_INCHES );
                }
             }
                break;
@@ -1688,9 +1682,9 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                if ( index != mark )
                {
-                  if ( fValue >= 2.0f )
+                  if ( fValue >= PRINT_WIDTH_MIN_SIZE_INCHES )
                   {
-                     if ( fValue <= 120.0f )
+                     if ( fValue <= PRINT_WIDTH_MAX_SIZE_INCHES )
                      {
                         settings.media.print.width = fValue;
 
@@ -1698,22 +1692,25 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                         if ( false == isCmdLine )
                         {
-                           printf( "   updated print media width to %1.2f", fValue );
+                           printf( "   updated print media width to %1.2f inches", fValue );
                         }
                      }
                      else if ( false == isCmdLine ) // exceeds maximum 120.0f inches
                      {
-                        printf( "   sorry, print media width input exceeds 120.0" );
+                        printf( "   print media width input exceeds %1.2f inches",
+                                PRINT_WIDTH_MAX_SIZE_INCHES );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 2.0f inches
-                  {                     
-                     printf( "   sorry, print media width input less than minimum 2.0" );
+                  {
+                     printf( "   print media width input less than minimum %1.2f inches",
+                             PRINT_WIDTH_MIN_SIZE_INCHES );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, print media width must be between 2.0 and 120.0" );
+                  printf( "   print media width must be between %1.2f and %1.2f inches",
+                          PRINT_WIDTH_MIN_SIZE_INCHES, PRINT_WIDTH_MAX_SIZE_INCHES );
                }
             }
                break;
@@ -1735,22 +1732,22 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                         if ( false == isCmdLine )
                         {
-                           printf( "   updated print media top margin to %1.2f", fValue );
+                           printf( "   updated print media top margin to %1.2f inches", fValue );
                         }
                      }
                      else if ( false == isCmdLine ) // exceeds maximum height inches
                      {
-                        printf( "   sorry, top margin value exceeds maximum for print media" );
+                        printf( "   top margin value exceeds maximum for print media" );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 0.0f inches
                   {
-                     printf( "   sorry, top margin must be greater than or equal to 0.0" );
+                     printf( "   top margin must be greater than or equal to 0.0 inches" );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, top margin input value not a valid number" );
+                  printf( "   top margin input value not a valid number" );
                }
             }
                break;
@@ -1772,22 +1769,22 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                         if ( false == isCmdLine )
                         {
-                           printf( "   updated print media bottom margin to %1.2f", fValue );
+                           printf( "   updated print media bottom margin to %1.2f inches", fValue );
                         }
                      }
                      else if ( false == isCmdLine ) // exceeds maximum height inches
                      {
-                        printf( "   sorry, bottom margin value exceeds maximum for print media" );
+                        printf( "   bottom margin value exceeds maximum for print media" );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 0.0f inches
                   {
-                     printf( "   sorry, bottom margin must be greater than or equal to 0.0" );
+                     printf( "   bottom margin must be greater than or equal to 0.0 inches" );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, bottom margin input value not a valid number" );
+                  printf( "   bottom margin input value not a valid number" );
                }
             }
 
@@ -1810,22 +1807,22 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                         if ( false == isCmdLine )
                         {
-                           printf( "   updated print media left margin to %1.2f", fValue );
+                           printf( "   updated print media left margin to %1.2f inches", fValue );
                         }
                      }
                      else if ( false == isCmdLine ) // exceeds maximum width inches
                      {
-                        printf( "   sorry, left margin value exceeds maximum for print media" );
+                        printf( "   left margin value exceeds maximum for print media" );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 0.0f inches
                   {
-                     printf( "   sorry, left margin must be greater than or equal to 0.0" );
+                     printf( "   left margin must be greater than or equal to 0.0 inches" );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, left margin input value not a valid number" );
+                  printf( "   left margin input value not a valid number" );
                }
             }
 
@@ -1848,22 +1845,22 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                         if ( false == isCmdLine )
                         {
-                           printf( "   updated print media right margin to %1.2f", fValue );
+                           printf( "   updated print media right margin to %1.2f inches", fValue );
                         }
                      }
                      else if ( false == isCmdLine ) // exceeds maximum width inches
                      {
-                        printf( "   sorry, right margin value exceeds maximum for print media" );
+                        printf( "   right margin value exceeds maximum for print media" );
                      }
                   }
                   else if ( false == isCmdLine ) // less than minimum 0.0f inches
                   {
-                     printf( "   sorry, right margin must be greater than or equal to 0.0" );
+                     printf( "   sorry, right margin must be greater than or equal to 0.0 inches" );
                   }
                }
                else if ( false == isCmdLine ) // fValue not a number
                {
-                  printf( "   sorry, right margin input value not a valid number" );
+                  printf( "   right margin input value not a valid number" );
                }
             }
                break;
@@ -1891,8 +1888,8 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
                    }
                 }
                 else if ( false == isCmdLine ) // not a valid selection
-                {                   
-                   printf( "   sorry, didn't recognize '%s' as valid input for print feed media.", index );
+                {
+                   printf( "   didn't recognize '%s' as valid input for print feed media.", index );
                 }
             }
                break;
@@ -1905,11 +1902,11 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                if ( mark != index )
                {
-                  index = ltrim( index, hzwspace, hzwspace_count );
+                  index = ltrim( index, hzWSpace, hzWSpaceCount );
 
                   if ( ',' == *mark )
                   {
-                     index = trim( mark + 1, whitespace, ws_count );
+                     index = trim( mark + 1, whitespace, whitespaceCount );
 
                      mark = index;
 
@@ -1926,13 +1923,13 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
 
                            if ( false == isCmdLine )
                            {
-                              printf( "   updated print media dot resolution to %u, %u",
+                              printf( "   updated print media dot resolution to %" FSTR_UINT16_T ", %" FSTR_UINT16_T,
                                       dots.horizontal, dots.vertical );
                            }
                         }
                         else if ( false == isCmdLine ) // out of range
                         {
-                           printf( "   sorry, print media dot resolution not in valid range (32 to 24000)" );
+                           printf( "   print media dot resolution not in valid range (32 to 24000)" );
                         }
                      }
                      else if ( false == isCmdLine ) // vRes not a number
@@ -1949,7 +1946,6 @@ bool updatePrintMediaParameters( bool isCmdLine, char* inputStr )
                {
                    printf( "   sorry, horizontal dot resolution not in valid range (32 to 24000)" );
                }
-
             }
                break;
          }
@@ -2089,7 +2085,7 @@ bool updateInkSpreadIndex( bool isCmdLine, char* inputStr )
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    length = strlen( index );
 
@@ -2159,7 +2155,7 @@ bool updateReductionFactor( bool isCmdLine, char* inputStr )
       ++index;
    }
 
-   index = ltrim( index, hzwspace, hzwspace_count );
+   index = ltrim( index, hzWSpace, hzWSpaceCount );
 
    length = strlen( index );
 
@@ -2402,9 +2398,10 @@ enum CMDLineResultType processCommandLineArguments( uint16_t argC, char* argV[],
    size_t nameLen;
    size_t aliasLen;
 
-   getcwd( settings.workingDirectory, _MAX_PATH + 14 );
-
-   settings.workingDirectory[ strlen( settings.workingDirectory ) + 1 ] = PATH_SEPARATOR_CHAR;
+   if ( NULL != getcwd(settings.workingDirectory, _MAX_PATH + 14) )
+   {
+      settings.workingDirectory[ strlen( settings.workingDirectory ) + 1 ] = PATH_SEPARATOR_CHAR;
+   }
 
    // find input files specified on command line
    for ( i = 1; i < argC; i++ )
@@ -2500,7 +2497,7 @@ enum CMDLineResultType processCommandLineArguments( uint16_t argC, char* argV[],
       }
       else
       {
-         printf( "\nERROR: No input files specified (nothing to do)" LNFEED );
+         printf( LNFEED "ERROR: No input files specified (nothing to do)" LNFEED );
       }
    }
 

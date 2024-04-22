@@ -1,17 +1,4 @@
-#ifdef _DOS
-#include <direct.h>  // _mkdir()
-#include <malloc.h>  // size_t, malloc()
-#else
-#include <unistd.h> // mkdir()
-#endif
-#include <memory.h>  // memset()
-#include <stdio.h>   // fprintf(), fopen(), fclose()
-#include <stdlib.h>  // NULL
-#include <sys/stat.h>
-#include <sys/types.h>
-
 #include "bitfld32.h"
-
 
 void BitField32_initialize( struct BitField32Type** field, uint16_t rowCount, uint16_t colCount )
 {
@@ -52,7 +39,7 @@ void BitField32_initialize( struct BitField32Type** field, uint16_t rowCount, ui
    }
    else
    {
-      fprintf( stderr, "\nERROR: Cannot allocate more than %lu bits for this implementation.\n", ( 0xFFFFUL << 5 ) );
+      fprintf( stderr, LNFEED "ERROR: Cannot allocate more than %lu bits for this implementation." LNFEED, ( 0xFFFFUL << 5 ) );
 
       *field = NULL;
    }
@@ -70,25 +57,21 @@ void BitField32_relinquish( struct BitField32Type** field )
 }
 
 
-bool BitField32_save( struct BitField32Type* field, char* path )
+bool BitField32_save( struct BitField32Type* field, char* filePath )
 {
    bool result = true;
 
-   char* index = path;
+   char* index = filePath;
 
    char subpath = '\0';
 
    size_t itemsWritten;
 
-#ifdef _DOS
-   struct _stat info;
-#else
    struct stat info;
-#endif
 
    FILE* output = NULL;
 
-   if ( NULL != path )
+   if ( NULL != filePath )
    {
       while ( ( true == result ) && ( '\0' != *index ) )
       {
@@ -97,31 +80,18 @@ bool BitField32_save( struct BitField32Type* field, char* path )
             subpath = *index;
 
             *index = '\0';
-#ifdef _DOS
-            if ( 0 != _stat( path, &info ) )
+
+            if ( 0 != stat( filePath, &info ) )
             {
-               if ( 0 != mkdir( path ) )
+               if ( 0 != makeDirectory( filePath ) )
                {
-                  result = false;
+                   result = false;
                }
             }
             else if ( info.st_mode & S_IFREG )
             {
                result = false;
             }
-#else
-            if ( 0 != stat( path, &info ) )
-            {
-               if ( 0 != mkdir( path, 0755 ) )
-               {
-                  result = false;
-               }
-            }
-            else if ( info.st_mode & S_IFREG )
-            {
-               result = false;
-            }
-#endif
 
             *index = subpath;
 
@@ -133,7 +103,7 @@ bool BitField32_save( struct BitField32Type* field, char* path )
 
       if ( true == result )
       {
-         if ( NULL != ( output = fopen( path, "wb" ) ) )
+         if ( NULL != ( output = fopen( filePath, "wb" ) ) )
          {
             itemsWritten = fwrite( field->bitStore, sizeof( uint32_t ), field->bucketCount, output );
 
@@ -158,7 +128,7 @@ bool BitField32_save( struct BitField32Type* field, char* path )
    return result;
 }
 
-bool BitField32_load( struct BitField32Type* field, char* path )
+bool BitField32_load( struct BitField32Type* field, char* filePath )
 {
    bool result = true;
 
@@ -166,9 +136,9 @@ bool BitField32_load( struct BitField32Type* field, char* path )
 
    size_t itemsRead;
 
-   if ( NULL != path )
+   if ( NULL != filePath )
    {
-      if ( NULL != ( input = fopen( path, "rb" ) ) )
+      if ( NULL != ( input = fopen( filePath, "rb" ) ) )
       {
          itemsRead = fread( field->bitStore, sizeof( uint32_t ), field->bucketCount, input );
 
@@ -179,7 +149,7 @@ bool BitField32_load( struct BitField32Type* field, char* path )
 
          fclose( input );
 
-         remove( path );
+         remove( filePath );
       }
       else
       {
