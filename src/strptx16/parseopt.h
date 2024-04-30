@@ -34,6 +34,7 @@ bool setVSyncValue( bool isCmdLine, char* inputStr );
 bool setSyncValue( bool isCmdLine, char* inputStr );
 bool updateCRCGeneration( bool isCmdLine, char* inputStr );
 bool updateRenderMode( bool isCmdLine, char* inputStr );
+bool updateWatermarkGeneration( bool isCmdLine, char* inputStr );
 bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr );
 bool updatePrintMediaParameters( bool isCmdLine, char* inputStr );
 bool updateInkSpreadIndex( bool isCmdLine, char* inputStr );

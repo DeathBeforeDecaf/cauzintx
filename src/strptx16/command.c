@@ -116,7 +116,7 @@ struct CommandType command[] =
    {  // q - quit program and exit back to command line
       0,
       "q",
-      NULL,
+      "quit",
       cmdln_halt,
       quitProgram
    },
@@ -130,7 +130,7 @@ struct CommandType command[] =
    },
 
    {  // ? - display some helpful hints
-      36,
+      37,
       "?",
       "help",
       cmdln_halt,
@@ -138,7 +138,7 @@ struct CommandType command[] =
    },
 
    {  // ? - display some helpful hints
-      36,
+      37,
       "?",
       "help",
       cmdln_completed,
@@ -185,6 +185,14 @@ struct CommandType command[] =
       updateRenderMode
    },
 
+   {  // g false - generate watermark logo at end of sequence
+      18,
+      "g",
+      NULL,
+      cmdln_completed,
+      updateWatermarkGeneration
+   },
+
    {  // % - display nearest direct mode device-dependent hSync/vSync values
       0,
       "%",
@@ -210,7 +218,7 @@ struct CommandType command[] =
    },
 
    {  // m - set/display published media settings
-      18,
+      19,
       "m",
       "pub",
       cmdln_completed,
@@ -218,28 +226,28 @@ struct CommandType command[] =
    },
 
    {  // m.height 11.0 - set publish media height
-      19,
+      20,
       "m.height",
       "pub.height",
       cmdln_completed,
       updatePublishedMediaParameters
    },
    {  // m.width 8.5 - set publish media width
-      20,
+      21,
       "m.width",
       "pub.width",
       cmdln_completed,
       updatePublishedMediaParameters
    },
    {  // m.tmar 0.5 - set publish media top margin
-      21,
+      22,
       "m.tmar",
       "pub.tmar",
       cmdln_completed,
       updatePublishedMediaParameters
    },
    {  // m.bmar 0.4 - set publish media bottom margin
-      22,
+      23,
       "m.bmar",
       "pub.bmar",
       cmdln_completed,
@@ -247,7 +255,7 @@ struct CommandType command[] =
    },
 
    {  // m.lmar 0.7 - set publish media left margin
-      23,
+      24,
       "m.lmar",
       "pub.lmar",
       cmdln_completed,
@@ -255,7 +263,7 @@ struct CommandType command[] =
    },
 
    {  // m.rmar 0.5 - set publish media right margin
-      24,
+      25,
       "m.rmar",
       "pub.rmar",
       cmdln_completed,
@@ -263,7 +271,7 @@ struct CommandType command[] =
    },
 
    {  // p letter - set/display print media settings
-      25,
+      26,
       "p",
       "prt",
       cmdln_completed,
@@ -271,7 +279,7 @@ struct CommandType command[] =
    },
 
    {  // p.height 11.0 - set print media height
-      26,
+      27,
       "p.height",
       "prt.height",
       cmdln_completed,
@@ -279,7 +287,7 @@ struct CommandType command[] =
    },
 
    {  // p.width 8.5 - set print media width
-      27,
+      28,
       "p.width",
       "prt.width",
       cmdln_completed,
@@ -287,7 +295,7 @@ struct CommandType command[] =
    },
 
    {  // p.tmar 0.5 - set print media top margin
-      28,
+      29,
       "p.tmar",
       "prt.tmar",
       cmdln_completed,
@@ -295,7 +303,7 @@ struct CommandType command[] =
    },
 
    {  // p.bmar 0.4 - set print media bottom margin
-      29,
+      30,
       "p.bmar",
       "prt.bmar",
       cmdln_completed,
@@ -303,7 +311,7 @@ struct CommandType command[] =
    },
 
    {  // p.lmar 0.7 - set print media left margin
-      30,
+      31,
       "p.lmar",
       "prt.lmar",
       cmdln_completed,
@@ -311,7 +319,7 @@ struct CommandType command[] =
    },
 
    {  // p.rmar 0.5 - set print media right margin
-      31,
+      32,
       "p.rmar",
       "prt.rmar",
       cmdln_completed,
@@ -319,7 +327,7 @@ struct CommandType command[] =
    },
 
    {  // p.feed sheet - set printer feed format to { sheet, continuous }
-      32,
+      33,
       "p.feed",
       "prt.feed",
       cmdln_completed,
@@ -327,7 +335,7 @@ struct CommandType command[] =
    },
 
    {  // p.dots 300,300 - set printer horizontal and vertical resolution (dots/area)
-      33,
+      34,
       "p.dots",
       "prt.dots",
       cmdln_completed,
@@ -335,7 +343,7 @@ struct CommandType command[] =
    },
 
    {  // k 1.000 - set the ink spread index, measured in thousands of an inch
-      34,
+      35,
       "k",
       "ink",
       cmdln_completed,
@@ -343,7 +351,7 @@ struct CommandType command[] =
    },
 
    {  // n 1.0 - inverse scaling factor (photo reduction factor 6.0 to 12.0)
-      35,
+      36,
       "n",
       "scale",
       cmdln_completed,

@@ -155,7 +155,7 @@ bool CZFListDataType_pathLessThan( CZFListDataType lhs, CZFListDataType rhs )
 
    left = lhs;
    right = rhs;
-   
+
    return ( stricmp( left->path, right->path ) < 0 );
 }
 
@@ -289,7 +289,7 @@ bool softBreak( const char* lineIn, uint16_t colLimit, uint16_t rowLimit, char**
 
       char* lastWhiteSpace;
       char* lastPunctuator;
-      
+
       char* buffer;
 
       size_t byteCount = colLimit;

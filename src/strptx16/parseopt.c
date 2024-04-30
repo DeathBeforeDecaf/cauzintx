@@ -1110,6 +1110,47 @@ bool updateRenderMode( bool isCmdLine, char* inputStr )
 }
 
 
+bool updateWatermarkGeneration( bool isCmdLine, char* inputStr )
+{
+   char* index = inputStr;
+
+   char* mark;
+
+   bool generateWatermark = false;
+
+   index += 1;
+
+   if ( isCmdLine && ( '=' == *index ) )
+   {
+      ++index;
+   }
+
+   if ( *index )
+   {
+      generateWatermark = strtobool( index, &mark );
+
+      if ( index == mark )
+      {
+         // unknown value
+         generateWatermark = true;
+      }
+
+      if ( false == isCmdLine )
+      {
+         printf( "   generate watermark for last strip updated to %s", ( generateWatermark ? "true" : "false" ) );
+      }
+   }
+   else if ( false == isCmdLine )
+   {
+      printf( "   generate watermark for last strip updated to false (default)" );
+   }
+
+   settings.generateWatermark = generateWatermark;
+
+   return true;
+}
+
+
 bool updatePublishedMediaParameters( bool isCmdLine, char* inputStr )
 {
    bool result = false;

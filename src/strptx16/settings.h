@@ -133,6 +133,7 @@ struct SystemSettings // (1448 bytes)
 {
    bool isInteractive;
    bool searchRecursively;
+   bool generateWatermark;
 
    enum OutputModeType outputMode;
 

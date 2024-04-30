@@ -4,6 +4,7 @@ struct SystemSettings settings =
 {
    1,                                                        // isInteractive
    0,                                                        // searchRecursively
+   0,                                                        // generateWatermark
    direct_render,
    {                                                         // StripLayoutType
       unit_inch,
@@ -20,7 +21,7 @@ struct SystemSettings settings =
       },
       {                                                      // StripFooter
          0.08f,                   // top_m                   // top of bottom
-         0.15f,                   // wmark_h                 // (optional)
+         0.16f,                   // wmark_h                 // (optional)
          0.08f                    // bottom_m                // (only with wmark)
       },
       0.620f,                     // MIN_PUBLISHED_WIDTH
