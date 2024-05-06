@@ -157,7 +157,7 @@ void displayDataDensityTable()
 
       if ( ( index > lowerLimit ) && ( index < upperLimit ) )
       {
-         printf( " % 6u", density[ index ].byteCountPerStrip );
+         printf( " % 6" FSTR_UINT16_T, density[ index ].byteCountPerStrip );
       }
 
       if ( ( 0 == ( ( index + 1 ) % 144 ) ) && ( index > lowerLimit ) && ( ( index + 1 ) < upperLimit ) )

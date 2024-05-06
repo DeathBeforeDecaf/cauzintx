@@ -603,6 +603,8 @@ void displayEditorCommands()
 
    printf( LNFEED "    f %s       - set output mode rendered format to { direct, reduce }" LNFEED,
            ( ( direct_render == settings.outputMode ) ? "direct" : "reduce" ) );
+   printf( "    g %-5s        - generate a watermark at end of strip sequence" LNFEED,
+   ( 0 == settings.generateWatermark ) ? "false" : "true" );
 
    printf( "    %%              - display nearest direct mode device-dependent Sync values" LNFEED );
    printf( "    #              - show bytes per strip with given hSync x vSync value table" LNFEED );

@@ -1,6 +1,7 @@
 #ifndef TXSTRIP_H
 #define TXSTRIP_H
 
+#include <stdio.h>
 #include <stdlib.h>  // malloc()
 #include <string.h>  // strlen(), _strnicmp()
 #include <time.h>    // time_t
@@ -20,8 +21,8 @@ struct FileEntryType
    uint8_t   category;     // 3.4.13 (1)
    uint8_t   os_type;      // 3.4.14 (1)
 // uint32_t  length : 24;  // 3.4.15 (3) file length on disk(max 16,777,215 bytes)
-	uint8_t   length[3];    // 3.4.15 (3) file length on disk(max 16,777,215 bytes)
-	char*     name;         // 3.4.16 (1<-->n bytes) null terminated filename
+   uint8_t   length[3];    // 3.4.15 (3) file length on disk(max 16,777,215 bytes)
+   char*     name;         // 3.4.16 (1<-->n bytes) null terminated filename
    uint8_t   terminator;   // 3.4.17 (1) filename terminator, 0xFF indicates executable content
    uint8_t   adjunct_size; // 3.4.18 (1) size of file metadata trailing
    uint8_t*  adjunct;      // 3.4.18+ (0-255 bytes) metadata (expansion block)
@@ -230,5 +231,7 @@ bool relinquishBitfield( struct MetaStripType* lStrip, uint8_t stripNumber );
 void relinquishStripSequence( struct MetaStripType** lStrip );
 
 bool renderStripSequence();
+
+void renderWatermarkLogo( FILE* output, float xPos, float yPos, float scale );
 
 #endif

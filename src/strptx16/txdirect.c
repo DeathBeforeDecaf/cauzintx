@@ -365,8 +365,6 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
 
       if ( NULL != ( output = fopen( settings.sequence.outputFilename, "wb" ) ) )
       {
-
-
          // prepend the postscript header
          fputs( "%!PS-Adobe-3.0\n", output );
 
@@ -746,7 +744,9 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
       fprintf( output, "   %2.6f %2.6f nearest scale\n", density.bitWidth * field->colSize * 72.0f,
                density.bitHeight * field->rowSize * 72.0f );
 
-      fprintf( output, "   %" FSTR_UINT16_T " %" FSTR_UINT16_T " 1 [%" FSTR_UINT16_T " 0 0 -%" FSTR_UINT16_T " 0 %" FSTR_UINT16_T "] { currentfile strip%03" FSTR_UINT8_T " readhexstring pop }\n",
+      fprintf( output,
+               "   %" FSTR_UINT16_T " %" FSTR_UINT16_T " 1 [%" FSTR_UINT16_T " 0 0 -%" FSTR_UINT16_T
+               " 0 %" FSTR_UINT16_T "] { currentfile strip%03" FSTR_UINT8_T " readhexstring pop }\n",
                field->colSize, field->rowSize, field->colSize, field->rowSize, field->rowSize, stripNumber );
 
       rawBytes = field->colSize / 8;
@@ -800,6 +800,20 @@ bool generateDirectPostscriptOutput( struct MetaStripType* lStrip, uint8_t strip
    {
       if ( stripNumber == stripCount )
       {
+         if ( settings.generateWatermark )
+         {
+            float xPos = 107.0f - ( field->colSize * 36.0f * density.bitWidth ) + left + hShift;
+
+            float yPos =
+               ( ( float )top ) - 17.5f - field->rowSize * 72.0f * density.bitHeight
+               - 72.0f * settings.stripLayout.footer.top_m - 72.0f * settings.stripLayout.footer.wmark_h;
+
+            if ( yPos > ( float )bottom )
+            {
+               renderWatermarkLogo( output, xPos, yPos, 0.062 );
+            }
+         }
+
          fprintf( output, "\npgsave restore\n" );
          fprintf( output, "showpage\n" );
          fputs( "%%PageTrailer\n", output );
