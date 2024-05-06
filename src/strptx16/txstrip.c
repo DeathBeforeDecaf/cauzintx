@@ -1035,10 +1035,11 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
    // paint hSync
    for ( row = 0; row < stripExtent.rows_hSyncHeader; row++ )
    {
-      // start line
+      // left boundary
       BitField32_set( field, rowIndex, 0 );
       BitField32_set( field, rowIndex, 1 );
 
+      // left block
       for ( col = 4; col <= 9; col++ )
       {
          BitField32_set( field, rowIndex, col );
@@ -1051,21 +1052,23 @@ bool encodeStripData( struct MetaStripType* lStrip, uint8_t stripNumber, uint16_
          BitField32_set( field, rowIndex, hBars[ hSync_bars ] - 2 );
          BitField32_set( field, rowIndex, hBars[ hSync_bars ] - 1 );
 
-         BitField32_set( field, rowIndex, colSize - hBars[ hSync_bars ] - 1 );
          BitField32_set( field, rowIndex, colSize - hBars[ hSync_bars ] - 2 );
+         BitField32_set( field, rowIndex, colSize - hBars[ hSync_bars ] - 3 );
       }
 
-      hSync_bars = hSync - 4;
-
-      for ( col = colSize - 12; col <= colSize - 7; col++ )
+      // right block
+      for ( col = colSize - 13; col <= colSize - 8; col++ )
       {
          BitField32_set( field, rowIndex, col );
       }
 
+      // right boundary
       BitField32_set( field, rowIndex, colSize - 4 );
       BitField32_set( field, rowIndex, colSize - 3 );
 
       rowIndex++;
+
+      hSync_bars = hSync - 4;
    }
 
 
